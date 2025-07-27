@@ -1,0 +1,193 @@
+@import 'tailwindcss';
+
+@import 'tw-animate-css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    /* Teal color palette */
+    --color-teal-50: 240 253 250;
+    --color-teal-100: 204 251 241;
+    --color-teal-200: 153 246 228;
+    --color-teal-300: 94 234 212;
+    --color-teal-400: 45 212 191;
+    --color-teal-500: 20 184 166;
+    --color-teal-600: 13 148 136;
+    --color-teal-700: 15 118 110;
+    --color-teal-800: 17 94 89;
+    --color-teal-900: 19 78 74;
+    --color-teal-950: 4 47 46;
+
+    /* Cyan color palette */
+    --color-cyan-50: 236 254 255;
+    --color-cyan-100: 207 250 254;
+    --color-cyan-200: 165 243 252;
+    --color-cyan-300: 103 232 249;
+    --color-cyan-400: 34 211 238;
+    --color-cyan-500: 6 182 212;
+    --color-cyan-600: 8 145 178;
+    --color-cyan-700: 14 116 144;
+    --color-cyan-800: 21 94 117;
+    --color-cyan-900: 22 78 99;
+    --color-cyan-950: 8 51 68;
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+
+    --color-sidebar: var(--sidebar-background);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
+        border-color: var(--color-gray-200, currentColor);
+    }
+}
+
+@layer utilities {
+    body,
+    html {
+        --font-sans:
+            'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    }
+}
+
+:root {
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(0 0% 3.9%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(0 0% 3.9%);
+    --popover: hsl(0 0% 100%);
+    --popover-foreground: hsl(0 0% 3.9%);
+    --primary: hsl(178 84% 32%);
+    --primary-foreground: hsl(0 0% 98%);
+    --secondary: hsl(178 20% 95%);
+    --secondary-foreground: hsl(178 84% 20%);
+    --muted: hsl(178 15% 96%);
+    --muted-foreground: hsl(178 10% 45%);
+    --accent: hsl(178 30% 94%);
+    --accent-foreground: hsl(178 84% 25%);
+    --destructive: hsl(0 84.2% 60.2%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(178 15% 92%);
+    --input: hsl(178 10% 89%);
+    --ring: hsl(178 84% 32%);
+    --chart-1: hsl(12 76% 61%);
+    --chart-2: hsl(173 58% 39%);
+    --chart-3: hsl(197 37% 24%);
+    --chart-4: hsl(43 74% 66%);
+    --chart-5: hsl(27 87% 67%);
+    --radius: 0.5rem;
+    --sidebar-background: hsl(178 15% 98%);
+    --sidebar-foreground: hsl(178 20% 26%);
+    --sidebar-primary: hsl(178 84% 32%);
+    --sidebar-primary-foreground: hsl(0 0% 98%);
+    --sidebar-accent: hsl(178 25% 94%);
+    --sidebar-accent-foreground: hsl(178 50% 30%);
+    --sidebar-border: hsl(178 15% 91%);
+    --sidebar-ring: hsl(178 84% 45%);
+    --sidebar: hsl(178 15% 98%);
+}
+
+.dark {
+    --background: hsl(178 15% 4%);
+    --foreground: hsl(0 0% 98%);
+    --card: hsl(178 15% 4%);
+    --card-foreground: hsl(0 0% 98%);
+    --popover: hsl(178 15% 4%);
+    --popover-foreground: hsl(0 0% 98%);
+    --primary: hsl(178 84% 65%);
+    --primary-foreground: hsl(178 84% 10%);
+    --secondary: hsl(178 20% 15%);
+    --secondary-foreground: hsl(178 84% 85%);
+    --muted: hsl(178 15% 16%);
+    --muted-foreground: hsl(178 10% 64%);
+    --accent: hsl(178 25% 15%);
+    --accent-foreground: hsl(178 84% 85%);
+    --destructive: hsl(0 84% 60%);
+    --destructive-foreground: hsl(0 0% 98%);
+    --border: hsl(178 20% 15%);
+    --input: hsl(178 20% 15%);
+    --ring: hsl(178 84% 75%);
+    --chart-1: hsl(220 70% 50%);
+    --chart-2: hsl(160 60% 45%);
+    --chart-3: hsl(30 80% 55%);
+    --chart-4: hsl(280 65% 60%);
+    --chart-5: hsl(340 75% 55%);
+    --sidebar-background: hsl(178 20% 7%);
+    --sidebar-foreground: hsl(178 15% 96%);
+    --sidebar-primary: hsl(178 84% 65%);
+    --sidebar-primary-foreground: hsl(178 84% 10%);
+    --sidebar-accent: hsl(178 25% 16%);
+    --sidebar-accent-foreground: hsl(178 50% 85%);
+    --sidebar-border: hsl(178 20% 16%);
+    --sidebar-ring: hsl(178 84% 60%);
+    --sidebar: hsl(178 25% 10%);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
