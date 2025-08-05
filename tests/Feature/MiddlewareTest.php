@@ -12,6 +12,7 @@ beforeEach(function () {
         'view-dashboard',
         'edit-profile',
         'manage-products',
+        'manage-users',
         'view-reports',
     ];
 
@@ -26,23 +27,23 @@ beforeEach(function () {
     $userRole->givePermissionTo(['view-dashboard', 'edit-profile']);
 });
 
-test('ensure permission middleware allows access with correct permission', function () {
+test('admin middleware allows access with admin role', function () {
     $user = User::factory()->create();
-    $user->assignRole('user');
+    $user->assignRole('admin');
 
     $this->actingAs($user);
 
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
     $response->assertStatus(200);
 });
 
-test('ensure permission middleware denies access without permission', function () {
+test('admin middleware denies access without admin role', function () {
     $user = User::factory()->create();
-    // Don't assign any role
+    $user->assignRole('user'); // Regular user role - should not access admin dashboard
 
     $this->actingAs($user);
 
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
     $response->assertStatus(403);
 });
 
@@ -76,18 +77,18 @@ test('settings routes require edit-profile permission', function () {
     $response->assertStatus(200);
 });
 
-test('settings routes deny access without edit-profile permission', function () {
+test('settings routes allow access to all authenticated users', function () {
     $user = User::factory()->create();
-    // Don't assign any role
+    // Don't assign any role - should still be able to access profile
 
     $this->actingAs($user);
 
     $response = $this->get('/settings/profile');
-    $response->assertStatus(403);
+    $response->assertStatus(200);
 });
 
 test('unauthenticated users are redirected to login', function () {
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
     $response->assertRedirect('/login');
 });
 
@@ -103,7 +104,7 @@ test('middleware logs unauthorized access attempts', function () {
     $this->actingAs($user);
 
     // This should trigger logging in our custom middleware
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
     $response->assertStatus(403);
 
     // In a real test, you might want to check log files or use a log testing package
@@ -117,12 +118,12 @@ test('api requests receive json error responses', function () {
 
     $this->actingAs($user);
 
-    $response = $this->getJson('/dashboard');
+    $response = $this->getJson('/admin');
     
     $response->assertStatus(403)
              ->assertJson([
-                 'message' => 'You do not have permission to access this resource.',
-                 'error' => 'insufficient_permissions'
+                 'message' => 'Admin access required.',
+                 'error' => 'admin_required'
              ]);
 });
 

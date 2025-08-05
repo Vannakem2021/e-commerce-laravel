@@ -13,9 +13,9 @@ class AuthRedirectService
      */
     public function getLoginRedirect(User $user, ?string $intended = null): RedirectResponse
     {
-        // Admin users always go to dashboard regardless of intended destination
+        // Admin users always go to admin dashboard regardless of intended destination
         if ($user->hasRole('admin')) {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         }
 
         // Regular users go to intended destination or home page
@@ -38,9 +38,9 @@ class AuthRedirectService
      */
     public function getRegistrationRedirect(User $user): RedirectResponse
     {
-        // Admin users go to dashboard
+        // Admin users go to admin dashboard
         if ($user->hasRole('admin')) {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         }
 
         // Regular users go to home page
@@ -89,7 +89,7 @@ class AuthRedirectService
     public function getDefaultRedirectForRole(string $role): string
     {
         return match ($role) {
-            'admin' => route('dashboard'),
+            'admin' => route('admin.dashboard'),
             'user' => route('home'),
             default => route('home'),
         };
@@ -108,9 +108,9 @@ class AuthRedirectService
      */
     public function getRedirectWithFallback(User $user, ?string $intended = null, ?string $fallback = null): RedirectResponse
     {
-        // Admin users always go to dashboard
+        // Admin users always go to admin dashboard
         if ($this->shouldRedirectToAdmin($user)) {
-            return redirect()->route('dashboard');
+            return redirect()->route('admin.dashboard');
         }
 
         // Try intended URL first

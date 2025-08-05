@@ -1,6 +1,14 @@
 <?php
 
+use Spatie\Permission\Models\Role;
+
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function () {
+    // Create roles for each test
+    Role::create(['name' => 'admin']);
+    Role::create(['name' => 'user']);
+});
 
 test('registration screen can be rendered', function () {
     $response = $this->get('/register');
@@ -17,5 +25,5 @@ test('new users can register', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('home', absolute: false)); // New users go to home
 });

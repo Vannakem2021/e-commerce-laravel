@@ -83,15 +83,15 @@ const currentYear = new Date().getFullYear();
 <template>
     <footer class="bg-gray-900 text-white">
         <!-- Main Footer Content -->
-        <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <div class="mx-auto max-w-[1600px] px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
             <div class="grid grid-cols-1 gap-8 lg:grid-cols-6">
                 <!-- Company Info & Newsletter -->
                 <div class="lg:col-span-2">
                     <!-- Logo & Description -->
                     <div class="mb-8">
                         <Link href="/" class="flex items-center">
-                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-600">
-                                <span class="text-xl font-bold text-white">E</span>
+                            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+                                <span class="text-xl font-bold text-primary-foreground">E</span>
                             </div>
                             <span class="ml-3 text-xl font-bold text-white">E-Commerce</span>
                         </Link>
@@ -191,7 +191,7 @@ const currentYear = new Date().getFullYear();
 
         <!-- Bottom Footer -->
         <div class="border-t border-gray-800">
-            <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
                 <div class="flex flex-col items-center justify-between gap-4 sm:flex-row">
                     <!-- Copyright -->
                     <p class="text-sm text-gray-400">© {{ currentYear }} E-Commerce. All rights reserved.</p>

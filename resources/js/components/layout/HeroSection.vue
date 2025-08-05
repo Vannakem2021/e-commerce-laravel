@@ -3,6 +3,19 @@ import BestSellers from '@/components/product/BestSellers.vue';
 import ProductBanner from '@/components/product/ProductBanner.vue';
 import ProductCarousel from '@/components/product/ProductCarousel.vue';
 import ShopByCategory from '@/components/product/ShopByCategory.vue';
+import { type Product } from '@/types/product';
+
+interface Props {
+    featuredProducts?: Product[];
+    bestSellers?: Product[];
+    newArrivals?: Product[];
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    featuredProducts: () => [],
+    bestSellers: () => [],
+    newArrivals: () => [],
+});
 </script>
 
 <template>
@@ -13,8 +26,8 @@ import ShopByCategory from '@/components/product/ShopByCategory.vue';
     <ShopByCategory />
 
     <!-- Featured Products Carousel -->
-    <ProductCarousel />
+    <ProductCarousel :products="featuredProducts" />
 
     <!-- Best Sellers Section -->
-    <BestSellers />
+    <BestSellers :products="bestSellers" />
 </template>

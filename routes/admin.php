@@ -1,5 +1,10 @@
 <?php
 
+// Removed AttributeController import
+use App\Http\Controllers\Admin\BrandController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\VariantController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -9,135 +14,73 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 |
 | Here are the admin routes for the e-commerce application.
-| All routes require authentication and appropriate permissions.
+| All routes require authentication and admin role.
 |
 */
 
-// Admin Dashboard - requires admin role
+// All admin routes require authentication, verification, and admin role
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+
+    // Admin Dashboard
     Route::get('admin', function () {
         return Inertia::render('admin/Dashboard');
     })->name('admin.dashboard');
-});
 
-// Product Management - requires product permissions
-Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
-    
-    // Products
-    Route::middleware('ensure.permission:view-products')->group(function () {
-        Route::get('products', function () {
-            return Inertia::render('admin/products/Index');
-        })->name('products.index');
-        
-        Route::get('products/{id}', function ($id) {
-            return Inertia::render('admin/products/Show', ['id' => $id]);
-        })->name('products.show');
-    });
-    
-    Route::middleware('ensure.permission:create-products')->group(function () {
-        Route::get('products/create', function () {
-            return Inertia::render('admin/products/Create');
-        })->name('products.create');
-        
-        Route::post('products', function () {
-            // Handle product creation
-            return redirect()->route('admin.products.index');
-        })->name('products.store');
-    });
-    
-    Route::middleware('ensure.permission:edit-products')->group(function () {
-        Route::get('products/{id}/edit', function ($id) {
-            return Inertia::render('admin/products/Edit', ['id' => $id]);
-        })->name('products.edit');
-        
-        Route::put('products/{id}', function ($id) {
-            // Handle product update
-            return redirect()->route('admin.products.show', $id);
-        })->name('products.update');
-    });
-    
-    Route::middleware('ensure.permission:delete-products')->group(function () {
-        Route::delete('products/{id}', function ($id) {
-            // Handle product deletion
-            return redirect()->route('admin.products.index');
-        })->name('products.destroy');
-    });
-    
-    // Categories
-    Route::middleware('ensure.permission:view-categories')->group(function () {
-        Route::get('categories', function () {
-            return Inertia::render('admin/categories/Index');
-        })->name('categories.index');
-    });
-    
-    // Orders
-    Route::middleware('ensure.permission:view-orders')->group(function () {
+    // Admin Pages
+    Route::prefix('admin')->name('admin.')->group(function () {
+        // Product Management
+        Route::resource('products', ProductController::class);
+
+        // Product image management routes
+        Route::delete('products/{product}/images/{image}', [ProductController::class, 'deleteImage'])->name('products.images.delete');
+        Route::post('products/{product}/images/reorder', [ProductController::class, 'reorderImages'])->name('products.images.reorder');
+        Route::post('products/{product}/images/{image}/primary', [ProductController::class, 'setPrimaryImage'])->name('products.images.primary');
+
+        // Category Management - use ID binding for admin routes
+        Route::resource('categories', CategoryController::class)->parameters([
+            'categories' => 'category:id'
+        ]);
+
+        // Category bulk operations
+        Route::post('categories/bulk-status', [CategoryController::class, 'bulkUpdateStatus'])->name('categories.bulk-status');
+        Route::delete('categories/bulk-delete', [CategoryController::class, 'bulkDelete'])->name('categories.bulk-delete');
+        Route::post('categories/sort-order', [CategoryController::class, 'updateSortOrder'])->name('categories.sort-order');
+
+        // Brand Management - use ID binding for admin routes
+        Route::resource('brands', BrandController::class)->parameters([
+            'brands' => 'brand:id'
+        ]);
+
+        // Brand bulk operations
+        Route::post('brands/bulk-status', [BrandController::class, 'bulkUpdateStatus'])->name('brands.bulk-status');
+        Route::delete('brands/bulk-delete', [BrandController::class, 'bulkDelete'])->name('brands.bulk-delete');
+        Route::post('brands/sort-order', [BrandController::class, 'updateSortOrder'])->name('brands.sort-order');
+
+        // Removed Attribute Management routes
+
+        // Variant Management
+        Route::get('products/{product}/variants', [VariantController::class, 'index'])->name('variants.index');
+        Route::get('products/{product}/variants/create', [VariantController::class, 'create'])->name('variants.create');
+        Route::post('products/{product}/variants', [VariantController::class, 'store'])->name('variants.store');
+        Route::get('products/{product}/variants/{variant}/edit', [VariantController::class, 'edit'])->name('variants.edit');
+        Route::patch('products/{product}/variants/{variant}', [VariantController::class, 'update'])->name('variants.update');
+        Route::delete('products/{product}/variants/{variant}', [VariantController::class, 'destroy'])->name('variants.destroy');
+
+
         Route::get('orders', function () {
-            return Inertia::render('admin/orders/Index');
+            return Inertia::render('admin/Orders');
         })->name('orders.index');
-        
-        Route::get('orders/{id}', function ($id) {
-            return Inertia::render('admin/orders/Show', ['id' => $id]);
-        })->name('orders.show');
-    });
-    
-    Route::middleware('ensure.permission:process-orders')->group(function () {
-        Route::put('orders/{id}/status', function ($id) {
-            // Handle order status update
-            return redirect()->route('admin.orders.show', $id);
-        })->name('orders.update-status');
-    });
-    
-    // Users Management
-    Route::middleware('ensure.permission:view-users')->group(function () {
+
         Route::get('users', function () {
-            return Inertia::render('admin/users/Index');
+            return Inertia::render('admin/Users');
         })->name('users.index');
-        
-        Route::get('users/{id}', function ($id) {
-            return Inertia::render('admin/users/Show', ['id' => $id]);
-        })->name('users.show');
-    });
-    
-    Route::middleware('ensure.permission:edit-users')->group(function () {
-        Route::get('users/{id}/edit', function ($id) {
-            return Inertia::render('admin/users/Edit', ['id' => $id]);
-        })->name('users.edit');
-        
-        Route::put('users/{id}', function ($id) {
-            // Handle user update
-            return redirect()->route('admin.users.show', $id);
-        })->name('users.update');
-    });
-    
-    // Reports - requires view-reports permission
-    Route::middleware('ensure.permission:view-reports')->group(function () {
+
         Route::get('reports', function () {
-            return Inertia::render('admin/reports/Index');
+            return Inertia::render('admin/Reports');
         })->name('reports.index');
-        
-        Route::get('reports/sales', function () {
-            return Inertia::render('admin/reports/Sales');
-        })->name('reports.sales');
-        
-        Route::get('reports/inventory', function () {
-            return Inertia::render('admin/reports/Inventory');
-        })->name('reports.inventory');
-    });
-    
-    // System Settings - admin only
-    Route::middleware('admin')->group(function () {
+
         Route::get('settings', function () {
-            return Inertia::render('admin/settings/Index');
+            return Inertia::render('admin/Settings');
         })->name('settings.index');
-        
-        Route::get('settings/system', function () {
-            return Inertia::render('admin/settings/System');
-        })->name('settings.system');
-        
-        Route::put('settings/system', function () {
-            // Handle system settings update
-            return redirect()->route('admin.settings.system');
-        })->name('settings.system.update');
     });
 });

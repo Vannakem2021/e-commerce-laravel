@@ -71,26 +71,36 @@ test('regular users cannot access admin features', function () {
     expect($user->can('view-reports'))->toBeFalse();
 });
 
-test('dashboard requires view-dashboard permission', function () {
+test('admin dashboard requires admin role', function () {
     $user = User::factory()->create();
-    // Don't assign any role - user should not have permissions
+    // Don't assign any role - user should not have admin access
 
     $this->actingAs($user);
 
-    $response = $this->get('/dashboard');
-    
-    // Should be forbidden due to missing permission
+    $response = $this->get('/admin');
+
+    // Should be forbidden due to missing admin role
     $response->assertStatus(403);
 });
 
-test('dashboard allows access with proper permission', function () {
+test('admin dashboard allows access with admin role', function () {
     $user = User::factory()->create();
-    $user->assignRole('user'); // Has view-dashboard permission
+    $user->assignRole('admin'); // Admin role required for admin dashboard access
 
     $this->actingAs($user);
 
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
     $response->assertStatus(200);
+});
+
+test('regular users cannot access admin dashboard even with permissions', function () {
+    $user = User::factory()->create();
+    $user->assignRole('user'); // Regular user role - should not access admin dashboard
+
+    $this->actingAs($user);
+
+    $response = $this->get('/admin');
+    $response->assertStatus(403);
 });
 
 test('roles and permissions are shared with frontend', function () {
@@ -99,7 +109,7 @@ test('roles and permissions are shared with frontend', function () {
 
     $this->actingAs($admin);
 
-    $response = $this->get('/dashboard');
+    $response = $this->get('/admin');
 
     $response->assertInertia(fn ($page) =>
         $page->has('auth.user')

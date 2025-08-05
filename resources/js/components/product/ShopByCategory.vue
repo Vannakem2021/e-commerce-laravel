@@ -1,70 +1,101 @@
 <script setup lang="ts">
 import Icon from '@/components/common/Icon.vue';
 import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import axios from 'axios';
+import { onMounted, ref } from 'vue';
 
-// Category data with icons and product counts
-const categories = ref([
-    {
-        id: 1,
-        name: 'Smartphones',
-        description: 'Latest mobile technology',
-        productCount: 245,
-        icon: 'smartphone',
-        href: '/categories/smartphones',
-        color: 'from-blue-500 to-blue-600',
-    },
-    {
-        id: 2,
-        name: 'Laptops',
-        description: 'Professional computing',
-        productCount: 189,
-        icon: 'laptop',
-        href: '/categories/laptops',
-        color: 'from-purple-500 to-purple-600',
-    },
-    {
-        id: 3,
-        name: 'Audio',
-        description: 'Premium sound experience',
-        productCount: 156,
-        icon: 'headphones',
-        href: '/categories/audio',
-        color: 'from-green-500 to-green-600',
-    },
-    {
-        id: 4,
-        name: 'Gaming',
-        description: 'Gaming gear & consoles',
-        productCount: 134,
-        icon: 'gamepad',
-        href: '/categories/gaming',
-        color: 'from-red-500 to-red-600',
-    },
-    {
-        id: 5,
-        name: 'Smart Home',
-        description: 'Connected living',
-        productCount: 98,
-        icon: 'home',
-        href: '/categories/smart-home',
-        color: 'from-orange-500 to-orange-600',
-    },
-    {
-        id: 6,
-        name: 'Accessories',
-        description: 'Essential add-ons',
-        productCount: 312,
-        icon: 'plug',
-        href: '/categories/accessories',
-        color: 'from-teal-500 to-teal-600',
-    },
-]);
+interface Category {
+    id: number;
+    name: string;
+    slug: string;
+    description: string;
+    product_count: number;
+    href: string;
+    icon: string;
+    color: string;
+}
+
+// Categories fetched from API
+const categories = ref<Category[]>([]);
+const loading = ref(true);
+const error = ref<string | null>(null);
+
+// Fetch featured categories from API
+const fetchCategories = async () => {
+    try {
+        loading.value = true;
+        error.value = null;
+
+        const response = await axios.get('/api/categories/featured');
+        categories.value = response.data.categories;
+
+        // Add special categories (New Arrivals, Best Sellers) to the mix
+        const specialCategories: Category[] = [
+            {
+                id: 999,
+                name: 'New Arrivals',
+                slug: 'new-arrivals',
+                description: 'Latest products just added',
+                product_count: 0, // Will be updated dynamically
+                href: '/products?sort=newest',
+                icon: 'clock',
+                color: 'from-green-500 to-green-600',
+            },
+            {
+                id: 998,
+                name: 'Best Sellers',
+                slug: 'best-sellers',
+                description: 'Most popular products',
+                product_count: 0, // Will be updated dynamically
+                href: '/products?sort=popular',
+                icon: 'trending-up',
+                color: 'from-orange-500 to-orange-600',
+            },
+        ];
+
+        // Combine database categories with special categories
+        categories.value = [...categories.value, ...specialCategories];
+    } catch (err) {
+        console.error('Error fetching categories:', err);
+        error.value = 'Failed to load categories';
+
+        // Fallback to hardcoded categories if API fails
+        categories.value = [
+            {
+                id: 1,
+                name: 'Smartphones',
+                slug: 'smartphones',
+                description: 'Latest mobile technology',
+                product_count: 0,
+                icon: 'smartphone',
+                href: '/products?category=smartphones',
+                color: 'from-blue-500 to-blue-600',
+            },
+            {
+                id: 2,
+                name: 'Laptops',
+                slug: 'laptops',
+                description: 'Professional computing',
+                product_count: 0,
+                icon: 'laptop',
+                href: '/products?category=laptops',
+                color: 'from-purple-500 to-purple-600',
+            },
+        ];
+    } finally {
+        loading.value = false;
+    }
+};
+
+// Fetch categories on component mount
+onMounted(() => {
+    fetchCategories();
+});
 </script>
 
 <template>
     <section class="bg-white py-16 lg:py-24">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
             <!-- Section Header -->
             <div class="mb-12 text-center">
                 <h2 class="text-3xl font-bold text-gray-900 lg:text-4xl">
@@ -74,8 +105,34 @@ const categories = ref([
                 <p class="mt-4 text-lg text-gray-700">Discover products tailored to your needs</p>
             </div>
 
+            <!-- Loading State -->
+            <div v-if="loading" class="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-6">
+                <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl bg-gray-200 p-4 sm:p-6">
+                    <div class="mx-auto mb-4 h-16 w-16 rounded-full bg-gray-300"></div>
+                    <div class="mb-2 h-4 rounded bg-gray-300"></div>
+                    <div class="mb-3 h-3 rounded bg-gray-300"></div>
+                    <div class="mx-auto h-6 w-20 rounded-full bg-gray-300"></div>
+                </div>
+            </div>
+
+            <!-- Error State -->
+            <div v-else-if="error" class="py-12 text-center">
+                <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                    <Icon name="alert-circle" class="h-8 w-8 text-red-600" />
+                </div>
+                <h3 class="mb-2 text-lg font-semibold text-gray-900">Failed to Load Categories</h3>
+                <p class="mb-4 text-gray-600">{{ error }}</p>
+                <button
+                    @click="fetchCategories"
+                    class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                    <Icon name="refresh-cw" class="mr-2 h-4 w-4" />
+                    Try Again
+                </button>
+            </div>
+
             <!-- Categories Grid -->
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-6">
+            <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-3 lg:grid-cols-6">
                 <Link
                     v-for="category in categories"
                     :key="category.id"
@@ -95,8 +152,6 @@ const categories = ref([
                             class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-2 border-teal-200 bg-teal-100 transition-all duration-300 group-hover:scale-110 group-hover:border-teal-300 group-hover:bg-teal-200"
                         >
                             <Icon :name="category.icon" class="h-8 w-8 text-teal-700 transition-colors duration-300 group-hover:text-teal-800" />
-                            <!-- Debug: Show icon name -->
-                            <!-- <span class="text-xs text-gray-500">{{ category.icon }}</span> -->
                         </div>
 
                         <!-- Category Name -->
@@ -113,7 +168,7 @@ const categories = ref([
                         <div
                             class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 transition-all duration-300 group-hover:bg-teal-100 group-hover:text-teal-800"
                         >
-                            {{ category.productCount }} products
+                            {{ category.product_count }} products
                         </div>
                     </div>
 
@@ -128,7 +183,7 @@ const categories = ref([
             <div class="mt-12 text-center">
                 <Link
                     href="/categories"
-                    class="inline-flex items-center rounded-lg bg-teal-600 px-6 py-3 text-base font-medium text-black transition-all duration-200 hover:bg-teal-700 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:outline-none"
+                    class="inline-flex items-center rounded-lg bg-primary px-6 py-3 text-base font-medium text-primary-foreground transition-all duration-200 hover:bg-primary/90 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:outline-none"
                 >
                     <Icon name="grid-3x3" class="mr-2 h-5 w-5" />
                     View All Categories

@@ -27,7 +27,7 @@ beforeEach(function () {
     $userRole->givePermissionTo(['view-dashboard', 'edit-profile']);
 });
 
-test('admin users are redirected to dashboard after login', function () {
+test('admin users are redirected to admin dashboard after login', function () {
     $admin = User::factory()->create();
     $admin->assignRole('admin');
 
@@ -36,7 +36,7 @@ test('admin users are redirected to dashboard after login', function () {
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/dashboard');
+    $response->assertRedirect('/admin');
 });
 
 test('regular users are redirected to home after login when no intended URL', function () {
@@ -66,7 +66,7 @@ test('regular users are redirected to intended URL after login', function () {
     $response->assertRedirect('/settings/profile');
 });
 
-test('admin users ignore intended URL and go to dashboard', function () {
+test('admin users ignore intended URL and go to admin dashboard', function () {
     $admin = User::factory()->create();
     $admin->assignRole('admin');
 
@@ -78,8 +78,8 @@ test('admin users ignore intended URL and go to dashboard', function () {
         'password' => 'password',
     ]);
 
-    // Admin should go to dashboard regardless of intended URL
-    $response->assertRedirect('/dashboard');
+    // Admin should go to admin dashboard regardless of intended URL
+    $response->assertRedirect('/admin');
 });
 
 test('admin users are redirected to dashboard after registration', function () {
@@ -99,7 +99,7 @@ test('admin users are redirected to dashboard after registration', function () {
     $redirectService = new AuthRedirectService();
     $redirect = $redirectService->getRegistrationRedirect($user);
     
-    expect($redirect->getTargetUrl())->toContain('/dashboard');
+    expect($redirect->getTargetUrl())->toContain('/admin');
 });
 
 test('regular users are redirected to home after registration', function () {
@@ -131,7 +131,7 @@ test('auth redirect service handles safe URLs correctly', function () {
 test('auth redirect service provides correct default redirects for roles', function () {
     $redirectService = new AuthRedirectService();
 
-    expect($redirectService->getDefaultRedirectForRole('admin'))->toContain('/dashboard');
+    expect($redirectService->getDefaultRedirectForRole('admin'))->toContain('/admin');
     expect($redirectService->getDefaultRedirectForRole('user'))->toContain('/');
     expect($redirectService->getDefaultRedirectForRole('unknown'))->toContain('/');
 });
@@ -146,7 +146,7 @@ test('password confirmation redirects based on role', function () {
         'password' => 'password',
     ]);
 
-    $response->assertRedirect('/dashboard');
+    $response->assertRedirect('/admin');
 });
 
 test('users without roles default to home page', function () {

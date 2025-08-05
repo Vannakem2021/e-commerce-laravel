@@ -1,33 +1,43 @@
 <script setup lang="ts">
 import AppLogo from '@/components/common/AppLogo.vue';
+import NavAccount from '@/components/navigation/NavAccount.vue';
 import NavFooter from '@/components/navigation/NavFooter.vue';
 import NavMain from '@/components/navigation/NavMain.vue';
 import NavUser from '@/components/navigation/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { usePermissions } from '@/composables/usePermissions';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { Settings, UserCircle } from 'lucide-vue-next';
+import { computed } from 'vue';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutGrid,
-    },
-];
+const { isAdmin } = usePermissions();
 
-const footerNavItems: NavItem[] = [
+// Platform navigation items (admin only) - removed dashboard from sidebar
+const platformNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    // Dashboard is now accessed via /admin route, not in sidebar
+    // Admin users can access it directly via URL or admin panel
+
+    return items;
+});
+
+// User navigation items (for all users)
+const userNavItems = computed<NavItem[]>(() => [
     {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
+        title: 'Profile',
+        href: '/settings/profile',
+        icon: UserCircle,
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
+        title: 'Settings',
+        href: '/settings/password',
+        icon: Settings,
     },
-];
+]);
+
+const footerNavItems: NavItem[] = [];
 </script>
 
 <template>
@@ -36,7 +46,7 @@ const footerNavItems: NavItem[] = [
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child>
-                        <Link :href="route('dashboard')">
+                        <Link :href="route('home')">
                             <AppLogo />
                         </Link>
                     </SidebarMenuButton>
@@ -45,7 +55,8 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :items="platformNavItems" />
+            <NavAccount :items="userNavItems" />
         </SidebarContent>
 
         <SidebarFooter>

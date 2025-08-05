@@ -2,11 +2,26 @@
 import Footer from '@/components/layout/Footer.vue';
 import HeroSection from '@/components/layout/HeroSection.vue';
 import Navbar from '@/components/navigation/Navbar.vue';
+import { Toaster } from '@/components/ui/sonner';
+
+import { type Product } from '@/types/product';
 import { Head } from '@inertiajs/vue3';
+
+interface Props {
+    featuredProducts?: Product[];
+    bestSellers?: Product[];
+    newArrivals?: Product[];
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    featuredProducts: () => [],
+    bestSellers: () => [],
+    newArrivals: () => [],
+});
 </script>
 
 <template>
-    <div class="min-h-screen bg-white">
+    <div class="min-h-screen bg-background">
         <Head title="Home - Electronics Store">
             <meta
                 name="description"
@@ -18,9 +33,12 @@ import { Head } from '@inertiajs/vue3';
         <Navbar />
 
         <!-- Hero Section -->
-        <HeroSection />
+        <HeroSection :featured-products="featuredProducts" :best-sellers="bestSellers" :new-arrivals="newArrivals" />
 
         <!-- Footer -->
         <Footer />
+
+        <!-- Toast Notifications -->
+        <Toaster position="bottom-right" />
     </div>
 </template>

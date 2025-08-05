@@ -5,8 +5,6 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
     --font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
@@ -111,7 +109,7 @@
 }
 
 :root {
-    --background: hsl(0 0% 100%);
+    --background: hsl(0 0% 96%);
     --foreground: hsl(0 0% 3.9%);
     --card: hsl(0 0% 100%);
     --card-foreground: hsl(0 0% 3.9%);
@@ -145,42 +143,6 @@
     --sidebar-border: hsl(178 15% 91%);
     --sidebar-ring: hsl(178 84% 45%);
     --sidebar: hsl(178 15% 98%);
-}
-
-.dark {
-    --background: hsl(178 15% 4%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(178 15% 4%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(178 15% 4%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(178 84% 65%);
-    --primary-foreground: hsl(178 84% 10%);
-    --secondary: hsl(178 20% 15%);
-    --secondary-foreground: hsl(178 84% 85%);
-    --muted: hsl(178 15% 16%);
-    --muted-foreground: hsl(178 10% 64%);
-    --accent: hsl(178 25% 15%);
-    --accent-foreground: hsl(178 84% 85%);
-    --destructive: hsl(0 84% 60%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(178 20% 15%);
-    --input: hsl(178 20% 15%);
-    --ring: hsl(178 84% 75%);
-    --chart-1: hsl(220 70% 50%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(178 20% 7%);
-    --sidebar-foreground: hsl(178 15% 96%);
-    --sidebar-primary: hsl(178 84% 65%);
-    --sidebar-primary-foreground: hsl(178 84% 10%);
-    --sidebar-accent: hsl(178 25% 16%);
-    --sidebar-accent-foreground: hsl(178 50% 85%);
-    --sidebar-border: hsl(178 20% 16%);
-    --sidebar-ring: hsl(178 84% 60%);
-    --sidebar: hsl(178 25% 10%);
 }
 
 @layer base {

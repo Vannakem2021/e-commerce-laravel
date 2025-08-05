@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import AppLogo from '@/components/common/AppLogo.vue';
 import Icon from '@/components/common/Icon.vue';
+import { usePermissions } from '@/composables/usePermissions';
+import { useCartStore } from '@/stores/cart';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
-const cartItemCount = ref(3); // This would come from your cart state
+const { isAdmin } = usePermissions();
+const cartStore = useCartStore();
 const isMobileMenuOpen = ref(false);
 
 // Close mobile menu when clicking outside or pressing escape
@@ -22,88 +25,69 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
+    fetchCategories();
 });
 
 onUnmounted(() => {
     document.removeEventListener('keydown', handleKeydown);
 });
 
-const categories = [
-    {
-        name: 'Smartphones',
-        subcategories: [
-            { name: 'iPhone', href: '/smartphones/iphone' },
-            { name: 'Samsung Galaxy', href: '/smartphones/samsung' },
-            { name: 'Google Pixel', href: '/smartphones/pixel' },
-            { name: 'OnePlus', href: '/smartphones/oneplus' },
-            { name: 'Xiaomi', href: '/smartphones/xiaomi' },
-        ],
-    },
-    {
-        name: 'Laptops',
-        subcategories: [
-            { name: 'MacBook', href: '/laptops/macbook' },
-            { name: 'Windows Laptops', href: '/laptops/windows' },
-            { name: 'Gaming Laptops', href: '/laptops/gaming' },
-            { name: 'Ultrabooks', href: '/laptops/ultrabooks' },
-            { name: 'Chromebooks', href: '/laptops/chromebooks' },
-        ],
-    },
-    {
-        name: 'Tablets',
-        subcategories: [
-            { name: 'iPad', href: '/tablets/ipad' },
-            { name: 'Android Tablets', href: '/tablets/android' },
-            { name: 'Windows Tablets', href: '/tablets/windows' },
-            { name: 'E-Readers', href: '/tablets/e-readers' },
-        ],
-    },
-    {
-        name: 'Audio',
-        subcategories: [
-            { name: 'Headphones', href: '/audio/headphones' },
-            { name: 'Earbuds', href: '/audio/earbuds' },
-            { name: 'Speakers', href: '/audio/speakers' },
-            { name: 'Soundbars', href: '/audio/soundbars' },
-            { name: 'Home Audio', href: '/audio/home-audio' },
-        ],
-    },
-    {
-        name: 'Gaming',
-        subcategories: [
-            { name: 'PlayStation', href: '/gaming/playstation' },
-            { name: 'Xbox', href: '/gaming/xbox' },
-            { name: 'Nintendo Switch', href: '/gaming/nintendo' },
-            { name: 'PC Gaming', href: '/gaming/pc' },
-            { name: 'Gaming Accessories', href: '/gaming/accessories' },
-        ],
-    },
-    {
-        name: 'Smart Home',
-        subcategories: [
-            { name: 'Smart Speakers', href: '/smart-home/speakers' },
-            { name: 'Security Cameras', href: '/smart-home/cameras' },
-            { name: 'Smart Lighting', href: '/smart-home/lighting' },
-            { name: 'Thermostats', href: '/smart-home/thermostats' },
-            { name: 'Smart Plugs', href: '/smart-home/plugs' },
-        ],
-    },
-    {
-        name: 'Accessories',
-        subcategories: [
-            { name: 'Phone Cases', href: '/accessories/cases' },
-            { name: 'Chargers & Cables', href: '/accessories/chargers' },
-            { name: 'Screen Protectors', href: '/accessories/screen-protectors' },
-            { name: 'Power Banks', href: '/accessories/power-banks' },
-            { name: 'Stands & Mounts', href: '/accessories/stands' },
-        ],
-    },
+// Primary navigation items (no dropdowns)
+const primaryNavItems = [
+    { name: 'Products', href: '/products' },
+    { name: 'New Arrivals', href: '/products/new' },
+    { name: 'Best Sellers', href: '/products/bestsellers' },
 ];
+
+// Dynamic category dropdowns
+const categoryDropdowns = ref([]);
+const categoriesLoading = ref(true);
+
+// Fetch categories from API
+const fetchCategories = async () => {
+    try {
+        categoriesLoading.value = true;
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+
+        // Transform API data to dropdown format
+        categoryDropdowns.value = data.categories.map((category) => ({
+            name: category.name,
+            href: `/products?category=${category.slug}`,
+            subcategories: category.children
+                ? category.children.map((child) => ({
+                      name: child.name,
+                      href: `/products?category=${child.slug}`,
+                  }))
+                : [],
+        }));
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+    } finally {
+        categoriesLoading.value = false;
+    }
+};
+
+// Brands dropdown
+const brandsDropdown = {
+    name: 'Brands',
+    href: '/brands',
+    subcategories: [
+        { name: 'Apple', href: '/products?brand=apple' },
+        { name: 'Samsung', href: '/products?brand=samsung' },
+        { name: 'Sony', href: '/products?brand=sony' },
+        { name: 'Microsoft', href: '/products?brand=microsoft' },
+        { name: 'Google', href: '/products?brand=google' },
+        { name: 'Dell', href: '/products?brand=dell' },
+        { name: 'HP', href: '/products?brand=hp' },
+        { name: 'Lenovo', href: '/products?brand=lenovo' },
+    ],
+};
 </script>
 
 <template>
     <nav class="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
             <div class="flex h-16 items-center justify-between">
                 <!-- Logo -->
                 <div class="flex-shrink-0">
@@ -112,29 +96,85 @@ const categories = [
                     </Link>
                 </div>
 
-                <!-- Categories Navigation -->
+                <!-- Main Navigation -->
                 <div class="hidden md:flex md:items-center md:space-x-1">
-                    <div v-for="category in categories" :key="category.name" class="group relative">
+                    <!-- Primary Navigation Items -->
+                    <Link
+                        v-for="item in primaryNavItems"
+                        :key="item.name"
+                        :href="item.href"
+                        class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-teal-50 hover:text-teal-600 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:outline-none"
+                    >
+                        {{ item.name }}
+                    </Link>
+
+                    <!-- Category Dropdowns -->
+                    <div v-for="category in categoryDropdowns" :key="category.name" class="group relative">
                         <!-- Category Button -->
-                        <button
-                            class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-teal-50 hover:text-teal-600 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:outline-none"
+                        <Link
+                            :href="category.href"
+                            class="flex items-center rounded-md px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-teal-50 hover:text-teal-600 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:outline-none"
                         >
                             {{ category.name }}
                             <Icon name="chevron-down" class="ml-1 inline-block h-3 w-3 transition-transform group-hover:rotate-180" />
-                        </button>
+                        </Link>
 
                         <!-- Dropdown Menu -->
                         <div
                             class="invisible absolute top-full left-0 z-50 mt-1 w-56 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100"
                         >
                             <div class="rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                                <!-- View All Category Link -->
+                                <Link
+                                    :href="category.href"
+                                    class="mb-1 block border-b border-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 transition-colors duration-150 hover:bg-teal-50 hover:text-gray-900"
+                                >
+                                    View All {{ category.name }}
+                                </Link>
+                                <!-- Subcategory Links -->
                                 <Link
                                     v-for="subcategory in category.subcategories"
                                     :key="subcategory.name"
                                     :href="subcategory.href"
-                                    class="block px-4 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-teal-50 hover:text-teal-700"
+                                    class="block px-4 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-teal-50 hover:text-gray-900"
                                 >
                                     {{ subcategory.name }}
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Brands Dropdown -->
+                    <div class="group relative">
+                        <!-- Brands Button -->
+                        <Link
+                            :href="brandsDropdown.href"
+                            class="flex items-center rounded-md px-4 py-2 text-sm font-medium text-gray-700 transition-all duration-200 hover:bg-teal-50 hover:text-teal-600 focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:outline-none"
+                        >
+                            {{ brandsDropdown.name }}
+                            <Icon name="chevron-down" class="ml-1 inline-block h-3 w-3 transition-transform group-hover:rotate-180" />
+                        </Link>
+
+                        <!-- Brands Dropdown Menu -->
+                        <div
+                            class="invisible absolute top-full left-0 z-50 mt-1 w-56 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100"
+                        >
+                            <div class="rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                                <!-- View All Brands Link -->
+                                <Link
+                                    :href="brandsDropdown.href"
+                                    class="mb-1 block border-b border-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 transition-colors duration-150 hover:bg-teal-50 hover:text-gray-900"
+                                >
+                                    View All Brands
+                                </Link>
+                                <!-- Brand Links -->
+                                <Link
+                                    v-for="brand in brandsDropdown.subcategories"
+                                    :key="brand.name"
+                                    :href="brand.href"
+                                    class="block px-4 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-teal-50 hover:text-gray-900"
+                                >
+                                    {{ brand.name }}
                                 </Link>
                             </div>
                         </div>
@@ -158,10 +198,10 @@ const categories = [
                     >
                         <Icon name="shopping-cart" class="h-5 w-5 text-gray-900" />
                         <span
-                            v-if="cartItemCount > 0"
+                            v-if="cartStore.cartCount > 0"
                             class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#00c9a7] text-xs font-semibold text-white shadow-sm"
                         >
-                            {{ cartItemCount }}
+                            {{ cartStore.cartCount }}
                         </span>
                     </Link>
 
@@ -183,11 +223,19 @@ const categories = [
                             <div class="rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
                                 <template v-if="user">
                                     <Link
-                                        href="/dashboard"
+                                        v-if="isAdmin"
+                                        href="/admin"
+                                        class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-50 hover:text-teal-600"
+                                    >
+                                        <Icon name="layout-dashboard" class="h-4 w-4" />
+                                        <span>Dashboard</span>
+                                    </Link>
+                                    <Link
+                                        href="/profile"
                                         class="flex items-center space-x-3 px-4 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-50 hover:text-teal-600"
                                     >
                                         <Icon name="user" class="h-4 w-4" />
-                                        <span>Dashboard</span>
+                                        <span>Profile</span>
                                     </Link>
                                     <Link
                                         href="/orders"
@@ -239,10 +287,30 @@ const categories = [
         <!-- Mobile Menu -->
         <div v-if="isMobileMenuOpen" class="border-t border-gray-200 bg-white md:hidden">
             <div class="space-y-1 px-4 py-3">
-                <!-- Mobile Categories -->
+                <!-- Mobile Navigation -->
                 <div class="space-y-1">
-                    <div v-for="category in categories" :key="category.name" class="space-y-1">
-                        <div class="px-3 py-2 text-sm font-medium text-gray-900">{{ category.name }}</div>
+                    <!-- Primary Navigation Items -->
+                    <div class="mb-4 space-y-1">
+                        <Link
+                            v-for="item in primaryNavItems"
+                            :key="item.name"
+                            :href="item.href"
+                            class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-800 transition-colors duration-150 hover:bg-teal-50 hover:text-gray-900"
+                            @click="isMobileMenuOpen = false"
+                        >
+                            {{ item.name }}
+                        </Link>
+                    </div>
+
+                    <!-- Category Sections -->
+                    <div v-for="category in categoryDropdowns" :key="category.name" class="space-y-1">
+                        <Link
+                            :href="category.href"
+                            class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-900 transition-colors duration-150 hover:bg-gray-100 hover:text-teal-600"
+                            @click="isMobileMenuOpen = false"
+                        >
+                            {{ category.name }}
+                        </Link>
                         <div class="space-y-1 pl-4">
                             <Link
                                 v-for="subcategory in category.subcategories"
@@ -255,6 +323,28 @@ const categories = [
                             </Link>
                         </div>
                     </div>
+
+                    <!-- Brands Section -->
+                    <div class="mt-4 space-y-1">
+                        <Link
+                            :href="brandsDropdown.href"
+                            class="block rounded-md px-3 py-2 text-sm font-semibold text-gray-900 transition-colors duration-150 hover:bg-gray-100 hover:text-teal-600"
+                            @click="isMobileMenuOpen = false"
+                        >
+                            {{ brandsDropdown.name }}
+                        </Link>
+                        <div class="space-y-1 pl-4">
+                            <Link
+                                v-for="brand in brandsDropdown.subcategories"
+                                :key="brand.name"
+                                :href="brand.href"
+                                class="block rounded-md px-3 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-100 hover:text-teal-600"
+                                @click="isMobileMenuOpen = false"
+                            >
+                                {{ brand.name }}
+                            </Link>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Mobile User Menu -->
@@ -262,12 +352,21 @@ const categories = [
                     <template v-if="user">
                         <div class="px-3 py-2 text-sm font-medium text-gray-900">{{ user.name }}</div>
                         <Link
+                            v-if="isAdmin"
                             href="/dashboard"
                             class="flex items-center space-x-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-100 hover:text-teal-600"
                             @click="isMobileMenuOpen = false"
                         >
-                            <Icon name="user" class="h-4 w-4" />
+                            <Icon name="layout-dashboard" class="h-4 w-4" />
                             <span>Dashboard</span>
+                        </Link>
+                        <Link
+                            href="/profile"
+                            class="flex items-center space-x-3 rounded-md px-3 py-2 text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-100 hover:text-teal-600"
+                            @click="isMobileMenuOpen = false"
+                        >
+                            <Icon name="user" class="h-4 w-4" />
+                            <span>Profile</span>
                         </Link>
                         <Link
                             href="/orders"

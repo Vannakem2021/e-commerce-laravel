@@ -10,28 +10,33 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        // Clear permission cache before seeding
+        app()['cache']->forget(config('permission.cache.key'));
+
         // Create permissions
         $permissions = [
-            // Dashboard & Profile
+            // Dashboard & Profile - Essential for all users
             'view-dashboard',
             'edit-profile',
             'view-settings',
+            'change-password',
+            'view-profile',
 
-            // User Management
+            // User Management - Admin only
             'manage-users',
             'view-users',
             'create-users',
             'edit-users',
             'delete-users',
 
-            // Product Management
+            // Product Management - Admin/Staff
             'manage-products',
             'view-products',
             'create-products',
             'edit-products',
             'delete-products',
 
-            // Category Management
+            // Category Management - Admin/Staff
             'manage-categories',
             'view-categories',
             'create-categories',
@@ -46,40 +51,50 @@ class RolePermissionSeeder extends Seeder
             'delete-orders',
             'process-orders',
 
-            // Customer Management
+            // Customer Management - Admin only
             'manage-customers',
             'view-customers',
             'edit-customers',
 
-            // Inventory Management
+            // Inventory Management - Admin/Staff
             'manage-inventory',
             'view-inventory',
             'update-inventory',
 
-            // Reports & Analytics
+            // Reports & Analytics - Admin only
             'view-reports',
             'view-analytics',
 
-            // System Settings
+            // System Settings - Admin only
             'manage-settings',
             'manage-system',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // Create roles and assign permissions
-        $admin = Role::firstOrCreate(['name' => 'admin']);
-        $admin->givePermissionTo(Permission::all());
+        // Create admin role with all permissions
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $admin->syncPermissions(Permission::all());
 
-        $user = Role::firstOrCreate(['name' => 'user']);
-        $user->givePermissionTo([
+        // Create user role with basic permissions
+        $user = Role::firstOrCreate(['name' => 'user', 'guard_name' => 'web']);
+        $user->syncPermissions([
             'view-dashboard',
             'edit-profile',
+            'view-profile',
             'view-settings',
+            'change-password',
             'create-orders',
             'view-orders',
         ]);
+
+        // Clear permission cache after seeding
+        app()['cache']->forget(config('permission.cache.key'));
+
+        $this->command->info('Roles and permissions seeded successfully!');
+        $this->command->info('Admin role permissions: ' . $admin->permissions->count());
+        $this->command->info('User role permissions: ' . $user->permissions->count());
     }
 }

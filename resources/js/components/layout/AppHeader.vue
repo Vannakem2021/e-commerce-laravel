@@ -25,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const auth = computed(() => page.props.auth);
+const { isAdmin } = usePermissions();
 
 const isCurrentRoute = computed(() => (url: string) => page.url === url);
 
@@ -32,13 +33,20 @@ const activeItemStyles = computed(
     () => (url: string) => (isCurrentRoute.value(url) ? 'text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100' : ''),
 );
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutGrid,
-    },
-];
+// Only show dashboard navigation for admin users
+const mainNavItems = computed<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    if (isAdmin.value) {
+        items.push({
+            title: 'Dashboard',
+            href: '/dashboard',
+            icon: LayoutGrid,
+        });
+    }
+
+    return items;
+});
 
 const rightNavItems: NavItem[] = [
     {
@@ -102,7 +110,7 @@ const rightNavItems: NavItem[] = [
                     </Sheet>
                 </div>
 
-                <Link :href="route('dashboard')" class="flex items-center gap-x-2">
+                <Link :href="isAdmin ? route('dashboard') : route('home')" class="flex items-center gap-x-2">
                     <AppLogo />
                 </Link>
 
@@ -170,7 +178,7 @@ const rightNavItems: NavItem[] = [
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" class="w-56">
-                            <UserMenuContent :user="auth.user" />
+                            <UserMenuContent />
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

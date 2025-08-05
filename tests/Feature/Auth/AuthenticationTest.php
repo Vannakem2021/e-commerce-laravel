@@ -1,8 +1,15 @@
 <?php
 
 use App\Models\User;
+use Spatie\Permission\Models\Role;
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(function () {
+    // Create roles for each test
+    Role::create(['name' => 'admin']);
+    Role::create(['name' => 'user']);
+});
 
 test('login screen can be rendered', function () {
     $response = $this->get('/login');
@@ -12,6 +19,7 @@ test('login screen can be rendered', function () {
 
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
+    $user->assignRole('user'); // Assign default user role
 
     $response = $this->post('/login', [
         'email' => $user->email,
@@ -19,7 +27,7 @@ test('users can authenticate using the login screen', function () {
     ]);
 
     $this->assertAuthenticated();
-    $response->assertRedirect(route('dashboard', absolute: false));
+    $response->assertRedirect(route('home', absolute: false)); // Regular users go to home
 });
 
 test('users can not authenticate with invalid password', function () {
