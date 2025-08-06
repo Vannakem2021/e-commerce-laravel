@@ -26,9 +26,6 @@ const quantities = ref<Record<number, number>>({});
 
 // Initialize cart data on mount
 onMounted(async () => {
-    console.log('Cart page mounted, using initial data...');
-    console.log('Props received:', { cart: props.cart, cart_summary: props.cart_summary, validation_errors: props.validation_errors });
-
     // Use initial data from Inertia props
     const hasInitialData = cartStore.setInitialData(props.cart, props.cart_summary, props.validation_errors);
 
@@ -37,13 +34,8 @@ onMounted(async () => {
         await cartStore.fetchCart();
     }
 
-    console.log('Cart initialized:', cartStore.cart);
-    console.log('Has items:', cartStore.hasItems);
-    console.log('Cart count:', cartStore.cartCount);
-
     // Initialize quantities from cart items
     if (cartStore.cart?.items) {
-        console.log('Initializing quantities for', cartStore.cart.items.length, 'items');
         cartStore.cart.items.forEach((item) => {
             quantities.value[item.id] = item.quantity;
         });
@@ -73,13 +65,10 @@ const updateQuantity = async (itemId: number, newQuantity: number) => {
             }
             // Validate cart after update
             await cartStore.validateCartItems();
-        } else {
-            console.error('Failed to update cart:', result.message);
-            alert(result.message);
         }
+        // Error handling is done by the cart store via toast notifications
     } catch (error) {
-        console.error('Error updating cart:', error);
-        alert('Failed to update cart. Please try again.');
+        // Error handling is done by the cart store via toast notifications
     } finally {
         isUpdating.value[itemId] = false;
     }
@@ -96,13 +85,10 @@ const removeItem = async (itemId: number) => {
             delete quantities.value[itemId];
             // Validate cart after removal
             await cartStore.validateCartItems();
-        } else {
-            console.error('Failed to remove item:', result.message);
-            alert(result.message);
         }
+        // Error handling is done by the cart store via toast notifications
     } catch (error) {
-        console.error('Error removing item:', error);
-        alert('Failed to remove item. Please try again.');
+        // Error handling is done by the cart store via toast notifications
     } finally {
         isUpdating.value[itemId] = false;
     }
@@ -117,13 +103,10 @@ const clearCart = async () => {
             quantities.value = {};
             // Clear validation errors since cart is empty
             cartStore.clearValidationErrors();
-        } else {
-            console.error('Failed to clear cart:', result.message);
-            alert(result.message);
         }
+        // Error handling is done by the cart store via toast notifications
     } catch (error) {
-        console.error('Error clearing cart:', error);
-        alert('Failed to clear cart. Please try again.');
+        // Error handling is done by the cart store via toast notifications
     }
 };
 

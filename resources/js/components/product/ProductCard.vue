@@ -157,30 +157,20 @@ const cardClasses = computed(() => {
 const addToCart = async () => {
     if (isAddingToCart.value) return;
 
-    console.log('Adding to cart - Product ID:', props.product.id);
     isAddingToCart.value = true;
 
     try {
         const result = await cartStore.addToCart(props.product.id, 1);
-        console.log('Cart store result:', result);
-
-        if (result.success) {
-            console.log('Added to cart successfully:', result.message);
-        } else {
-            console.error('Failed to add to cart:', result.message);
-            // Error feedback is handled by the cart store
-        }
+        // Error feedback is handled by the cart store via toast notifications
     } catch (error) {
-        console.error('Error adding to cart:', error);
-        // Error feedback is handled by the cart store
+        // Error feedback is handled by the cart store via toast notifications
     } finally {
         isAddingToCart.value = false;
     }
 };
 
 const addToWishlist = () => {
-    console.log('Add to wishlist:', props.product);
-    // TODO: Implement add to wishlist functionality
+    // Wishlist functionality will be implemented in future phase
 };
 </script>
 

@@ -7,53 +7,45 @@ import { Toaster } from '@/components/ui/sonner';
 
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CreditCard, MapPin, ShoppingBag, Truck } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { useCartStore } from '@/stores/cart';
+import { type Cart, type CartItem } from '@/types/cart';
 
-interface CartItem {
+interface Address {
     id: number;
-    product_id: number;
-    product_variant_id?: number;
-    quantity: number;
-    price: number;
-    total_price: number;
-    formatted_price: string;
-    formatted_total: string;
-    display_name: string;
-    product: {
-        id: number;
-        name: string;
-        slug: string;
-        sku: string;
-        primaryImage?: {
-            image_path: string;
-        };
-        brand?: {
-            name: string;
-        };
-    };
-    variant?: {
-        name: string;
-    };
-}
-
-interface Cart {
-    id: number;
-    total_quantity: number;
-    total_price: number;
-    formatted_total: string;
-    items: CartItem[];
+    contact_name: string;
+    phone_number: string;
+    house_number?: string;
+    street_number?: string;
+    city_province: string;
+    district_khan: string;
+    commune_sangkat: string;
+    postal_code: string;
+    additional_info?: string;
+    is_default: boolean;
 }
 
 interface Props {
     cart: Cart;
     validation_errors?: string[];
+    saved_addresses?: Address[];
+    default_shipping_address?: Address;
 }
 
 const props = defineProps<Props>();
+const cartStore = useCartStore();
 
-// Computed properties
-const subtotal = computed(() => props.cart?.formatted_total || '$0.00');
-const itemCount = computed(() => props.cart?.total_quantity || 0);
+// Initialize cart store with checkout data
+onMounted(() => {
+    // Convert validation_errors array to CartValidationErrors format if needed
+    const validationErrors = props.validation_errors ? {} : undefined;
+    cartStore.setInitialData(props.cart, undefined, validationErrors);
+});
+
+// Computed properties - prioritize cart store data
+const subtotal = computed(() => cartStore.cartTotal || props.cart?.formatted_total || '$0.00');
+const itemCount = computed(() => cartStore.cartCount || props.cart?.total_quantity || 0);
+const cartItems = computed(() => cartStore.cart?.items || props.cart?.items || []);
 
 // Helper function to get product image
 const getImageUrl = (item: CartItem): string => {
@@ -63,11 +55,11 @@ const getImageUrl = (item: CartItem): string => {
     return '/images/placeholder-product.jpg';
 };
 
-// State for shipping address
-const shippingAddress = ref(null);
+// State for shipping address - initialize with default saved address if available
+const shippingAddress = ref<Address | null>(props.default_shipping_address || null);
 
 // Handle address saved
-const onAddressSaved = (address: any) => {
+const onAddressSaved = (address: Address) => {
     shippingAddress.value = address;
     console.log('Address saved:', address);
     // Here you can proceed to next step or update UI
@@ -105,21 +97,64 @@ const onAddressSaved = (address: any) => {
                     <div class="checkout-section">
                         <div class="checkout-section-header">
                             <div class="checkout-progress">
-                                <div class="flex h-10 w-10 items-center justify-center rounded-full checkout-step-active">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full"
+                                     :class="shippingAddress ? 'checkout-step-completed' : 'checkout-step-active'">
                                     <MapPin class="h-5 w-5" />
                                 </div>
                                 <div class="space-y-1">
-                                    <h2 class="text-lg font-semibold">Shipping Information</h2>
-                                    <p class="text-sm text-muted-foreground">Enter your delivery address</p>
+                                    <h2 class="text-lg font-semibold"
+                                        :class="shippingAddress ? 'text-foreground' : ''">
+                                        Shipping Information
+                                    </h2>
+                                    <p class="text-sm text-muted-foreground">
+                                        {{ shippingAddress ? 'Address saved successfully' : 'Enter your delivery address' }}
+                                    </p>
                                 </div>
                             </div>
                         </div>
                         <div class="checkout-section-content">
-                            <ShippingForm
-                                @saved="onAddressSaved"
-                                @cancel="() => {}"
-                                :type="'shipping'"
-                            />
+                            <!-- Display saved address if exists -->
+                            <div v-if="shippingAddress" class="mb-6 p-4 bg-muted rounded-lg border">
+                                <div class="flex items-start justify-between">
+                                    <div class="space-y-2">
+                                        <h4 class="font-semibold text-foreground">Shipping Address</h4>
+                                        <div class="text-sm text-muted-foreground space-y-1">
+                                            <p><strong>{{ shippingAddress.contact_name }}</strong></p>
+                                            <p>{{ shippingAddress.phone_number }}</p>
+                                            <p>
+                                                {{ [
+                                                    shippingAddress.house_number,
+                                                    shippingAddress.street_number,
+                                                    shippingAddress.commune_sangkat,
+                                                    shippingAddress.district_khan,
+                                                    shippingAddress.city_province,
+                                                    shippingAddress.postal_code
+                                                ].filter(Boolean).join(', ') }}
+                                            </p>
+                                            <p v-if="shippingAddress.additional_info" class="italic">
+                                                {{ shippingAddress.additional_info }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        @click="shippingAddress = null"
+                                    >
+                                        Edit
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <!-- Show form if no address is saved -->
+                            <div v-else>
+                                <ShippingForm
+                                    @saved="onAddressSaved"
+                                    @cancel="() => {}"
+                                    :type="'shipping'"
+                                    :saved-addresses="props.saved_addresses"
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -177,7 +212,7 @@ const onAddressSaved = (address: any) => {
 
                         <!-- Cart Items -->
                         <div class="space-y-4 mb-6">
-                            <div v-for="item in cart.items" :key="item.id" class="flex items-center gap-4">
+                            <div v-for="item in cartItems" :key="item.id" class="flex items-center gap-4">
                                 <!-- Product Image -->
                                 <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border">
                                     <img :src="getImageUrl(item)" :alt="item.product.name" class="h-full w-full object-cover" />

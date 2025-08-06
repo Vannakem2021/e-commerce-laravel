@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Address;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,9 +34,23 @@ class CheckoutController extends Controller
                 ->with('error', 'Please resolve cart issues before proceeding to checkout.');
         }
 
+        // Get user's saved addresses
+        $savedAddresses = auth()->check()
+            ? Address::where('user_id', auth()->id())
+                ->where('type', 'shipping')
+                ->orderBy('is_default', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+            : collect();
+
+        // Get default shipping address
+        $defaultShippingAddress = $savedAddresses->where('is_default', true)->first();
+
         return Inertia::render('Checkout', [
             'cart' => $cart,
             'validation_errors' => $errors,
+            'saved_addresses' => $savedAddresses,
+            'default_shipping_address' => $defaultShippingAddress,
         ]);
     }
 }

@@ -92,6 +92,41 @@ Route::get('/debug', function () {
     return Inertia::render('Debug');
 })->name('debug');
 
+// Test route to debug cart count issue
+Route::get('/test-cart-count', function () {
+    try {
+        $cartService = app(\App\Services\CartService::class);
+        $cart = $cartService->getCartWithItems();
+
+        $summary = $cartService->getCartSummary();
+
+        $itemsData = $cart->items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'product_id' => $item->product_id,
+                'quantity' => $item->quantity,
+                'product_name' => $item->product->name ?? 'Unknown',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'cart_id' => $cart->id,
+            'items_count' => $cart->items->count(),
+            'total_quantity_attribute' => $cart->total_quantity,
+            'total_quantity_manual' => $cart->items->sum('quantity'),
+            'summary' => $summary,
+            'items' => $itemsData,
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+    }
+})->name('test-cart-count');
+
 // Test route to debug BrandService issue
 Route::get('/test-brands', function () {
     try {

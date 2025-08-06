@@ -276,13 +276,29 @@ interface AddressForm {
     is_default: boolean
 }
 
+interface SavedAddress {
+    id: number;
+    contact_name: string;
+    phone_number: string;
+    house_number?: string;
+    street_number?: string;
+    city_province: string;
+    district_khan: string;
+    commune_sangkat: string;
+    postal_code: string;
+    additional_info?: string;
+    is_default: boolean;
+}
+
 interface Props {
     initialData?: Partial<AddressForm>
     type?: 'shipping' | 'billing'
+    savedAddresses?: SavedAddress[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    type: 'shipping'
+    type: 'shipping',
+    savedAddresses: () => []
 })
 
 const emit = defineEmits<{

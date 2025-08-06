@@ -13,15 +13,9 @@ const { isAdmin } = usePermissions();
 const { categoryDropdowns, hasCategories, categoryError } = useCategories();
 const cartStore = useCartStore();
 
-// Get cart count - prioritize store data over shared data
+// Get cart count - always use cart store as single source of truth
 const cartCount = computed(() => {
-    // If cart store has data, use it (it's more up-to-date)
-    if (cartStore.cart) {
-        return cartStore.cartCount;
-    }
-    // Fallback to shared data from initial page load
-    const sharedCartSummary = page.props.cart_summary as any;
-    return sharedCartSummary?.total_quantity || 0;
+    return cartStore.cartCount;
 });
 const isMobileMenuOpen = ref(false);
 
@@ -42,8 +36,8 @@ onMounted(() => {
     // Initialize cart store with shared data if not already initialized
     if (!cartStore.cart) {
         const sharedCartSummary = page.props.cart_summary as any;
-        if (sharedCartSummary) {
-            // Create a minimal cart object from shared summary data
+        if (sharedCartSummary && (sharedCartSummary.total_quantity > 0 || sharedCartSummary.id > 0)) {
+            // Only initialize if there's actually cart data
             const cartData = {
                 id: sharedCartSummary.id || 0,
                 total_quantity: sharedCartSummary.total_quantity || 0,

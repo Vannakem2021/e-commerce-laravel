@@ -1,6 +1,9 @@
 import type { LucideIcon } from 'lucide-vue-next';
 import type { Config } from 'ziggy-js';
 
+// Export cart types
+export * from './cart';
+
 export interface Auth {
     user: User;
     roles: string[];

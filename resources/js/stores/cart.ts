@@ -1,52 +1,43 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useSonnerToast } from '@/composables/useSonnerToast';
 import { useErrorHandler } from '@/composables/useErrorHandler';
-
-export interface CartItem {
-    id: number;
-    product_id: number;
-    product_variant_id?: number;
-    quantity: number;
-    price: number;
-    total_price: number;
-    formatted_price: string;
-    formatted_total: string;
-    display_name: string;
-    product: {
-        id: number;
-        name: string;
-        slug: string;
-        sku: string;
-        primaryImage?: {
-            image_path: string;
-        };
-        brand?: {
-            name: string;
-        };
-    };
-    variant?: {
-        id: number;
-        name: string;
-    };
-}
-
-export interface Cart {
-    id: number;
-    total_quantity: number;
-    total_price: number;
-    formatted_total: string;
-    items: CartItem[];
-}
-
-export interface CartValidationErrors {
-    [itemId: number]: string[];
-}
+import { useCartError } from '@/composables/useCartError';
+import { useCartPersistence } from '@/composables/useCartPersistence';
+import { useOptimisticUpdates } from '@/composables/useOptimisticUpdates';
+import { useCartAnalytics } from '@/composables/useCartAnalytics';
+import { useCartPerformance } from '@/composables/useCartPerformance';
+import { CartApiService } from '@/services/cartApi';
+import {
+    type Cart,
+    type CartItem,
+    type CartValidationErrors,
+    type CartOperationResult,
+    type CartSummary,
+    type CartOperationContext
+} from '@/types/cart';
 
 export const useCartStore = defineStore('cart', () => {
     // Composables
     const toast = useSonnerToast();
     const errorHandler = useErrorHandler();
+    const cartError = useCartError();
+    const persistence = useCartPersistence({
+        enableLocalStorage: true,
+        enableSessionStorage: true,
+        expirationHours: 24,
+    });
+    const optimistic = useOptimisticUpdates();
+    const analytics = useCartAnalytics({
+        enableTracking: true,
+        sessionTimeout: 30,
+        batchSize: 5,
+    });
+    const performance = useCartPerformance({
+        debounceDelay: 300,
+        enableLazyLoading: true,
+        maxCacheSize: 50,
+    });
 
     // State
     const cart = ref<Cart | null>(null);
@@ -56,9 +47,15 @@ export const useCartStore = defineStore('cart', () => {
 
     // Getters
     const cartCount = computed(() => {
-        const count = cart.value?.total_quantity || 0;
-        console.log('Cart count computed:', count, 'from cart:', cart.value);
-        return count;
+        if (!cart.value) return 0;
+
+        // If we have items, calculate from items for accuracy
+        if (cart.value.items && cart.value.items.length > 0) {
+            return cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+        }
+
+        // Otherwise use the total_quantity property
+        return cart.value.total_quantity || 0;
     });
     const cartTotal = computed(() => cart.value?.formatted_total || '$0.00');
     const hasItems = computed(() => (cart.value?.items.length || 0) > 0);
@@ -66,132 +63,150 @@ export const useCartStore = defineStore('cart', () => {
     const hasValidationErrors = computed(() => Object.keys(validationErrors.value).length > 0);
     const validationErrorCount = computed(() => Object.keys(validationErrors.value).length);
 
+    // Initialize persistence and auto-save
+    const initializePersistence = () => {
+        // Try to load persisted cart data
+        const persistedData = persistence.initialize();
+
+        if (persistedData?.cart && !cart.value) {
+            // Only use persisted data if no cart is currently set
+            cart.value = persistedData.cart;
+
+            toast.success('Cart restored', {
+                description: 'Your previous cart has been restored from your last session.',
+            });
+        }
+
+        // Set up auto-save watching
+        persistence.watchCart(cart);
+
+        return !!persistedData;
+    };
+
     // Actions
     const setInitialData = (initialCart: Cart, initialSummary?: any, initialValidationErrors?: CartValidationErrors) => {
         if (initialCart) {
             cart.value = initialCart;
-            console.log('Cart store initialized with data:', cart.value);
+            console.log('Cart store initialized with data:', {
+                id: initialCart.id,
+                total_quantity: initialCart.total_quantity,
+                items_count: initialCart.items?.length || 0,
+                computed_count: cartCount.value
+            });
+            // Save to persistence immediately
+            persistence.saveCartImmediate(initialCart, initialSummary);
         }
         if (initialValidationErrors) {
             validationErrors.value = initialValidationErrors;
-            console.log('Validation errors set:', validationErrors.value);
         }
         return !!initialCart;
     };
 
-    const fetchCart = async (force = false) => {
+    const fetchCart = async (force = false): Promise<CartOperationResult> => {
         // Skip if we already have data and not forcing
         if (!force && cart.value && cart.value.items.length >= 0) {
-            return;
+            return { success: true, message: 'Cart already loaded' };
         }
 
-        // Since we removed the API endpoint, we can't fetch cart data anymore
-        // This method is kept for compatibility but doesn't do anything
-        console.warn('fetchCart called but API endpoint removed. Cart data should be provided via Inertia props.');
-        return;
-    };
-
-
-
-    const addToCart = async (productId: number, quantity: number = 1, variantId?: number) => {
         isLoading.value = true;
         errorHandler.clearError();
 
-        const operation = async () => {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            console.log('CSRF Token:', csrfToken);
-            console.log('Adding to cart:', { productId, quantity, variantId });
-
-            const payload: any = {
-                product_id: productId,
-                quantity,
-            };
-
-            // Only include variant_id if it's not undefined/null
-            if (variantId !== undefined && variantId !== null) {
-                payload.variant_id = variantId;
-            }
-
-            const response = await fetch('/cart', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify(payload),
-            });
-
-            console.log('Response status:', response.status);
-            console.log('Response ok:', response.ok);
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: Failed to add item to cart`);
-            }
-
-            return await response.json();
-        };
-
         try {
-            const data = await errorHandler.retry(operation, 2);
+            const response = await CartApiService.getCart();
 
-            if (data.success) {
-                // Update cart count from cart_summary if available
-                if (data.cart_summary) {
-                    // Update cart state with summary data
-                    if (cart.value) {
-                        cart.value.total_quantity = data.cart_summary.total_quantity;
-                        cart.value.total_price = data.cart_summary.total_price;
-                        cart.value.formatted_total = data.cart_summary.formatted_total;
-                    }
-                }
-
-                toast.success('Added to cart!', {
-                    description: `Item has been added to your cart successfully. You now have ${cartCount.value} item${cartCount.value !== 1 ? 's' : ''} in your cart.`
-                });
-                return { success: true, message: data.message };
+            if (response.success && response.data) {
+                cart.value = response.data;
+                return { success: true, message: 'Cart loaded successfully' };
             } else {
-                errorHandler.handleCartError(new Error(data.message), 'add item');
-                return { success: false, message: data.message };
+                throw new Error(response.message || 'Failed to load cart');
             }
-        } catch (err) {
-            const errorState = errorHandler.handleCartError(err, 'add item');
-            return { success: false, message: errorState.message };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to load cart';
+            errorHandler.handleCartError(new Error(message), 'load cart');
+            return { success: false, message };
         } finally {
             isLoading.value = false;
         }
     };
 
-    const updateQuantity = async (itemId: number, quantity: number) => {
+
+
+    const addToCart = async (productId: number, quantity: number = 1, variantId?: number): Promise<CartOperationResult> => {
         isLoading.value = true;
         errorHandler.clearError();
 
-        const operation = async () => {
-            const response = await fetch(`/cart/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({ quantity }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `HTTP ${response.status}: Failed to update cart`);
-            }
-
-            return await response.json();
-        };
+        // Store original cart state for rollback
+        const originalCart = cart.value ? JSON.parse(JSON.stringify(cart.value)) : null;
 
         try {
-            const data = await operation();
+            const response = await CartApiService.addToCart(productId, quantity, variantId);
 
-            if (data.success) {
+            if (response.success) {
+                // Update cart state with server response
+                if (response.cart_summary) {
+                    console.log('Updating cart with server response:', response.cart_summary);
+
+                    if (cart.value) {
+                        // Update existing cart totals with server data
+                        cart.value.total_quantity = response.cart_summary.total_quantity;
+                        cart.value.total_price = response.cart_summary.total_price;
+                        cart.value.formatted_total = response.cart_summary.formatted_total;
+                    } else {
+                        // Create new cart if none exists
+                        cart.value = {
+                            id: response.cart_summary.id || 0,
+                            total_quantity: response.cart_summary.total_quantity,
+                            total_price: response.cart_summary.total_price,
+                            formatted_total: response.cart_summary.formatted_total,
+                            items: [], // Items will be loaded when needed
+                        };
+                    }
+
+                    console.log('Cart after update:', {
+                        id: cart.value.id,
+                        total_quantity: cart.value.total_quantity,
+                        computed_count: cartCount.value
+                    });
+                }
+
+                toast.success('Added to cart!', {
+                    description: `Item has been added to your cart successfully. You now have ${cartCount.value} item${cartCount.value !== 1 ? 's' : ''} in your cart.`
+                });
+
+                // Save to persistence
+                persistence.saveCart(cart.value, response.cart_summary);
+
+                // Track analytics
+                analytics.trackAddToCart(
+                    { id: productId, name: 'Product', price: 0 }, // Product data would come from API
+                    quantity,
+                    variantId
+                );
+
+                return { success: true, message: response.message };
+            } else {
+                throw new Error(response.message || 'Failed to add item to cart');
+            }
+        } catch (error) {
+            // Rollback to original state on error
+            cart.value = originalCart;
+
+            const message = error instanceof Error ? error.message : 'Failed to add item to cart';
+            errorHandler.handleCartError(new Error(message), 'add item');
+            return { success: false, message };
+        } finally {
+            isLoading.value = false;
+        }
+    };
+
+    const updateQuantity = async (itemId: number, quantity: number): Promise<CartOperationResult> => {
+        isLoading.value = true;
+        errorHandler.clearError();
+
+        try {
+            const response = await CartApiService.updateQuantity(itemId, quantity);
+
+            if (response.success) {
                 // Update cart state locally for immediate feedback
                 if (cart.value) {
                     if (quantity === 0) {
@@ -208,10 +223,10 @@ export const useCartStore = defineStore('cart', () => {
                     }
 
                     // Use server-returned cart summary for accurate totals
-                    if (data.cart_summary) {
-                        cart.value.total_quantity = data.cart_summary.total_quantity;
-                        cart.value.total_price = data.cart_summary.total_price;
-                        cart.value.formatted_total = data.cart_summary.formatted_total;
+                    if (response.cart_summary) {
+                        cart.value.total_quantity = response.cart_summary.total_quantity;
+                        cart.value.total_price = response.cart_summary.total_price;
+                        cart.value.formatted_total = response.cart_summary.formatted_total;
                     } else {
                         // Fallback: recalculate cart totals
                         cart.value.total_quantity = cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -220,94 +235,83 @@ export const useCartStore = defineStore('cart', () => {
                     }
                 }
 
-                return { success: true, message: data.message };
+                return { success: true, message: response.message };
             } else {
-                errorHandler.handleCartError(new Error(data.message), 'update quantity');
-                return { success: false, message: data.message };
+                throw new Error(response.message || 'Failed to update cart item');
             }
-        } catch (err) {
-            const errorState = errorHandler.handleCartError(err, 'update quantity');
-            return { success: false, message: errorState.message };
-        } finally {
-            isLoading.value = false;
-        }
-    };
-
-    const removeItem = async (itemId: number) => {
-        isLoading.value = true;
-        error.value = null;
-
-        try {
-            const response = await fetch(`/cart/${itemId}`, {
-                method: 'DELETE',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                // Update cart state locally for immediate feedback
-                if (cart.value) {
-                    cart.value.items = cart.value.items.filter(item => item.id !== itemId);
-
-                    // Use server-returned cart summary for accurate totals
-                    if (data.cart_summary) {
-                        cart.value.total_quantity = data.cart_summary.total_quantity;
-                        cart.value.total_price = data.cart_summary.total_price;
-                        cart.value.formatted_total = data.cart_summary.formatted_total;
-                    } else {
-                        // Fallback: recalculate cart totals
-                        cart.value.total_quantity = cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
-                        cart.value.total_price = cart.value.items.reduce((sum, item) => sum + item.total_price, 0);
-                        cart.value.formatted_total = '$' + (cart.value.total_price / 100).toFixed(2);
-                    }
-                }
-
-                return { success: true, message: data.message };
-            } else {
-                error.value = data.message;
-                return { success: false, message: data.message };
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to remove item';
-            error.value = message;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update cart item';
+            errorHandler.handleCartError(new Error(message), 'update quantity');
             return { success: false, message };
         } finally {
             isLoading.value = false;
         }
     };
 
-    const clearCart = async () => {
+    const removeItem = async (itemId: number): Promise<CartOperationResult> => {
         isLoading.value = true;
-        error.value = null;
+        errorHandler.clearError();
 
         try {
-            const response = await fetch('/cart', {
-                method: 'DELETE',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
+            const response = await CartApiService.removeItem(itemId);
 
-            const data = await response.json();
+            if (response.success) {
+                // Update cart state locally for immediate feedback
+                if (cart.value) {
+                    cart.value.items = cart.value.items.filter(item => item.id !== itemId);
 
-            if (data.success) {
+                    // Use server-returned cart summary for accurate totals
+                    if (response.cart_summary) {
+                        cart.value.total_quantity = response.cart_summary.total_quantity;
+                        cart.value.total_price = response.cart_summary.total_price;
+                        cart.value.formatted_total = response.cart_summary.formatted_total;
+                    } else {
+                        // Fallback: recalculate cart totals
+                        cart.value.total_quantity = cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+                        cart.value.total_price = cart.value.items.reduce((sum, item) => sum + item.total_price, 0);
+                        cart.value.formatted_total = '$' + (cart.value.total_price / 100).toFixed(2);
+                    }
+                }
+
+                toast.success('Item removed', {
+                    description: 'Item has been removed from your cart.'
+                });
+
+                return { success: true, message: response.message };
+            } else {
+                throw new Error(response.message || 'Failed to remove item from cart');
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to remove item';
+            errorHandler.handleCartError(new Error(message), 'remove item');
+            return { success: false, message };
+        } finally {
+            isLoading.value = false;
+        }
+    };
+
+    const clearCart = async (): Promise<CartOperationResult> => {
+        isLoading.value = true;
+        errorHandler.clearError();
+
+        try {
+            const response = await CartApiService.clearCart();
+
+            if (response.success) {
                 // Reset cart state
                 cart.value = null;
-                return { success: true, message: data.message };
+
+                toast.success('Cart cleared', {
+                    description: 'All items have been removed from your cart.'
+                });
+
+                return { success: true, message: response.message };
             } else {
-                error.value = data.message;
-                return { success: false, message: data.message };
+                throw new Error(response.message || 'Failed to clear cart');
             }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : 'Failed to clear cart';
-            error.value = message;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to clear cart';
+            errorHandler.handleCartError(new Error(message), 'clear cart');
             return { success: false, message };
         } finally {
             isLoading.value = false;
@@ -347,6 +351,7 @@ export const useCartStore = defineStore('cart', () => {
         validationErrorCount,
 
         // Actions
+        initializePersistence,
         setInitialData,
         fetchCart,
         addToCart,
@@ -356,5 +361,19 @@ export const useCartStore = defineStore('cart', () => {
         validateCartItems,
         clearError,
         clearValidationErrors,
+
+        // Persistence
+        clearPersistedData: persistence.clearPersistedData,
+        persistenceState: persistence.state,
+
+        // Analytics
+        trackCartView: analytics.trackCartView,
+        trackCheckoutStart: analytics.trackCheckoutStart,
+        getAnalyticsSummary: analytics.getAnalyticsSummary,
+
+        // Performance
+        optimizeCartCalculations: performance.optimizeCartCalculations,
+        getPerformanceStats: performance.getPerformanceStats,
+        optimizeMemory: performance.optimizeMemory,
     };
 });
