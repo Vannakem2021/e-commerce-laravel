@@ -82,4 +82,64 @@ class Brand extends Model
     {
         return 'slug';
     }
+
+    /**
+     * Get the brand's logo URL with fallback.
+     */
+    public function getLogoUrlAttribute(): string
+    {
+        if ($this->logo) {
+            return str_starts_with($this->logo, 'http') ? $this->logo : "/storage/{$this->logo}";
+        }
+
+        // Fallback to generated avatar
+        return "https://ui-avatars.com/api/?name=" . urlencode($this->name) . "&size=200&background=f3f4f6&color=374151";
+    }
+
+    /**
+     * Get published products count.
+     */
+    public function getPublishedProductsCountAttribute(): int
+    {
+        return $this->products()->where('status', 'published')->count();
+    }
+
+    /**
+     * Scope to include only brands with published products.
+     */
+    public function scopeWithPublishedProducts(Builder $query): void
+    {
+        $query->whereHas('products', function ($q) {
+            $q->where('status', 'published');
+        });
+    }
+
+    /**
+     * Get SEO-friendly URL for the brand.
+     */
+    public function getUrlAttribute(): string
+    {
+        return route('brands.show', $this->slug);
+    }
+
+    /**
+     * Boot the model.
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Clear cache when brand is updated
+        static::saved(function ($brand) {
+            if (app()->bound(\App\Services\BrandService::class)) {
+                app(\App\Services\BrandService::class)->clearCache();
+            }
+        });
+
+        static::deleted(function ($brand) {
+            if (app()->bound(\App\Services\BrandService::class)) {
+                app(\App\Services\BrandService::class)->clearCache();
+            }
+        });
+    }
 }

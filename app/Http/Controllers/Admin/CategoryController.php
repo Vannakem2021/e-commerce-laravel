@@ -2,22 +2,39 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\CategoryException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Category\StoreCategoryRequest;
 use App\Http\Requests\Admin\Category\UpdateCategoryRequest;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CategoryController extends Controller
 {
     /**
+     * Create a new controller instance.
+     */
+    public function __construct()
+    {
+        // Note: Removed authorizeResource to prevent JSON responses in Inertia
+        // Manual authorization checks are added to each method instead
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request): Response
     {
+        // Manual authorization check - this should work with admin middleware
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'Admin access required.');
+        }
+
         $query = Category::with(['parent', 'children'])
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
@@ -40,6 +57,11 @@ class CategoryController extends Controller
      */
     public function create(): Response
     {
+        // Manual authorization check
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'Admin access required.');
+        }
+
         return Inertia::render('admin/categories/Create', [
             'parentCategories' => Category::active()->ordered()->get(['id', 'name', 'parent_id']),
         ]);
@@ -50,10 +72,34 @@ class CategoryController extends Controller
      */
     public function store(StoreCategoryRequest $request): RedirectResponse
     {
-        Category::create($request->validated());
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('admin.categories.index')
-            ->with('status', 'Category created successfully.');
+            $category = Category::create($request->validated());
+
+            DB::commit();
+
+            Log::info('Category created successfully', [
+                'category_id' => $category->id,
+                'category_name' => $category->name,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()->route('admin.categories.index')
+                ->with('status', 'Category created successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            throw CategoryException::databaseError(
+                'Failed to create category: ' . $e->getMessage(),
+                [
+                    'request_data' => $request->validated(),
+                    'user_id' => auth()->id(),
+                    'original_error' => $e->getMessage(),
+                ]
+            );
+        }
     }
 
     /**
@@ -61,6 +107,11 @@ class CategoryController extends Controller
      */
     public function show(Category $category): Response
     {
+        // Manual authorization check
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'Admin access required.');
+        }
+
         $category->load([
             'parent',
             'children' => function ($query) {
@@ -83,6 +134,11 @@ class CategoryController extends Controller
      */
     public function edit(Category $category): Response
     {
+        // Manual authorization check
+        if (!auth()->user()->hasRole('admin')) {
+            abort(403, 'Admin access required.');
+        }
+
         return Inertia::render('admin/categories/Edit', [
             'category' => $category,
             'parentCategories' => Category::where('id', '!=', $category->id)
@@ -97,10 +153,38 @@ class CategoryController extends Controller
      */
     public function update(UpdateCategoryRequest $request, Category $category): RedirectResponse
     {
-        $category->update($request->validated());
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('admin.categories.index')
-            ->with('status', 'Category updated successfully.');
+            $originalData = $category->toArray();
+            $category->update($request->validated());
+
+            DB::commit();
+
+            Log::info('Category updated successfully', [
+                'category_id' => $category->id,
+                'category_name' => $category->name,
+                'user_id' => auth()->id(),
+                'changes' => $category->getChanges(),
+                'original_data' => $originalData,
+            ]);
+
+            return redirect()->route('admin.categories.index')
+                ->with('status', 'Category updated successfully.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            throw CategoryException::databaseError(
+                'Failed to update category: ' . $e->getMessage(),
+                [
+                    'category_id' => $category->id,
+                    'request_data' => $request->validated(),
+                    'user_id' => auth()->id(),
+                    'original_error' => $e->getMessage(),
+                ]
+            );
+        }
     }
 
     /**
@@ -108,21 +192,64 @@ class CategoryController extends Controller
      */
     public function destroy(Category $category): RedirectResponse
     {
-        // Check if category has children or products
-        if ($category->children()->exists()) {
+        try {
+            // Check if category has children
+            if ($category->children()->exists()) {
+                throw CategoryException::deletionConstraint(
+                    'Cannot delete category with subcategories.',
+                    [
+                        'category_id' => $category->id,
+                        'category_name' => $category->name,
+                        'children_count' => $category->children()->count(),
+                    ]
+                );
+            }
+
+            // Check if category has products
+            if ($category->products()->exists()) {
+                throw CategoryException::deletionConstraint(
+                    'Cannot delete category with products.',
+                    [
+                        'category_id' => $category->id,
+                        'category_name' => $category->name,
+                        'products_count' => $category->products()->count(),
+                    ]
+                );
+            }
+
+            DB::beginTransaction();
+
+            $categoryData = $category->toArray();
+            $category->delete();
+
+            DB::commit();
+
+            Log::info('Category deleted successfully', [
+                'category_id' => $category->id,
+                'category_name' => $category->name,
+                'user_id' => auth()->id(),
+                'deleted_data' => $categoryData,
+            ]);
+
             return redirect()->route('admin.categories.index')
-                ->with('error', 'Cannot delete category with subcategories.');
+                ->with('status', 'Category deleted successfully.');
+
+        } catch (CategoryException $e) {
+            // Re-throw CategoryException to maintain proper error handling
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            throw CategoryException::databaseError(
+                'Failed to delete category: ' . $e->getMessage(),
+                [
+                    'category_id' => $category->id,
+                    'category_name' => $category->name,
+                    'user_id' => auth()->id(),
+                    'original_error' => $e->getMessage(),
+                ]
+            );
         }
-
-        if ($category->products()->exists()) {
-            return redirect()->route('admin.categories.index')
-                ->with('error', 'Cannot delete category with products.');
-        }
-
-        $category->delete();
-
-        return redirect()->route('admin.categories.index')
-            ->with('status', 'Category deleted successfully.');
     }
 
     /**
@@ -130,19 +257,48 @@ class CategoryController extends Controller
      */
     public function bulkUpdateStatus(Request $request): RedirectResponse
     {
-        $request->validate([
-            'category_ids' => ['required', 'array'],
-            'category_ids.*' => ['exists:categories,id'],
-            'is_active' => ['required', 'boolean'],
-        ]);
+        try {
+            // Check authorization for bulk operations
+            $this->authorize('bulkUpdate', Category::class);
 
-        $updatedCount = Category::whereIn('id', $request->category_ids)
-            ->update(['is_active' => $request->is_active]);
+            $request->validate([
+                'category_ids' => ['required', 'array'],
+                'category_ids.*' => ['exists:categories,id'],
+                'is_active' => ['required', 'boolean'],
+            ]);
 
-        $status = $request->is_active ? 'activated' : 'deactivated';
+            DB::beginTransaction();
 
-        return redirect()->route('admin.categories.index')
-            ->with('status', "{$updatedCount} categories {$status} successfully.");
+            $updatedCount = Category::whereIn('id', $request->category_ids)
+                ->update(['is_active' => $request->is_active]);
+
+            DB::commit();
+
+            $status = $request->is_active ? 'activated' : 'deactivated';
+
+            Log::info('Bulk category status update completed', [
+                'category_ids' => $request->category_ids,
+                'is_active' => $request->is_active,
+                'updated_count' => $updatedCount,
+                'user_id' => auth()->id(),
+            ]);
+
+            return redirect()->route('admin.categories.index')
+                ->with('status', "{$updatedCount} categories {$status} successfully.");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            throw CategoryException::databaseError(
+                'Failed to bulk update category status: ' . $e->getMessage(),
+                [
+                    'category_ids' => $request->category_ids ?? [],
+                    'is_active' => $request->is_active ?? null,
+                    'user_id' => auth()->id(),
+                    'original_error' => $e->getMessage(),
+                ]
+            );
+        }
     }
 
     /**
@@ -150,6 +306,9 @@ class CategoryController extends Controller
      */
     public function bulkDelete(Request $request): RedirectResponse
     {
+        // Check authorization for bulk delete operations
+        $this->authorize('bulkDelete', Category::class);
+
         $request->validate([
             'category_ids' => ['required', 'array'],
             'category_ids.*' => ['exists:categories,id'],
@@ -185,6 +344,9 @@ class CategoryController extends Controller
      */
     public function updateSortOrder(Request $request): RedirectResponse
     {
+        // Check authorization for sort order updates
+        $this->authorize('updateSortOrder', Category::class);
+
         $request->validate([
             'categories' => ['required', 'array'],
             'categories.*.id' => ['required', 'exists:categories,id'],

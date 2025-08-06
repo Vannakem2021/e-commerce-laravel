@@ -44,9 +44,105 @@ Route::get('/products/{slug}', [ProductController::class, 'show'])->name('produc
 
 // Removed attribute-related API routes
 
-// API Routes for categories
-Route::get('/api/categories', [ProductController::class, 'getCategories'])->name('api.categories');
-Route::get('/api/categories/featured', [ProductController::class, 'getFeaturedCategories'])->name('api.categories.featured');
+// API Routes for categories (DEPRECATED - Use shared Inertia data instead)
+Route::get('/api/categories', function () {
+    // Log deprecation warning
+    if (config('features.log_deprecated_api_usage', true)) {
+        \Illuminate\Support\Facades\Log::warning('Deprecated API route accessed: /api/categories', [
+            'user_agent' => request()->userAgent(),
+            'ip' => request()->ip(),
+            'referer' => request()->header('referer'),
+        ]);
+    }
+
+    // Return categories with deprecation notice
+    $categories = app(\App\Http\Controllers\ProductController::class)->getCategories();
+
+    return response()->json([
+        ...$categories->getData(true),
+        'deprecated' => true,
+        'message' => 'This endpoint is deprecated. Use shared Inertia data instead.',
+        'migration_guide' => 'Access categories via usePage().props.shared.categories',
+    ]);
+})->name('api.categories.deprecated');
+
+Route::get('/api/categories/featured', function () {
+    // Log deprecation warning
+    if (config('features.log_deprecated_api_usage', true)) {
+        \Illuminate\Support\Facades\Log::warning('Deprecated API route accessed: /api/categories/featured', [
+            'user_agent' => request()->userAgent(),
+            'ip' => request()->ip(),
+            'referer' => request()->header('referer'),
+        ]);
+    }
+
+    // Return featured categories with deprecation noti
+    $categories = app(\App\Http\Controllers\ProductController::class)->getFeaturedCategories();
+
+    return response()->json([
+        ...$categories->getData(true),
+        'deprecated' => true,
+        'message' => 'This endpoint is deprecated. Use shared Inertia data instead.',
+        'migration_guide' => 'Access featured categories via usePage().props.shared.featured_categories',
+    ]);
+})->name('api.categories.featured.deprecated');
+
+// Debug route for testing Phase 1 implementation
+Route::get('/debug', function () {
+    return Inertia::render('Debug');
+})->name('debug');
+
+// Test route to debug BrandService issue
+Route::get('/test-brands', function () {
+    try {
+        $brandService = app(\App\Services\BrandService::class);
+        $brands = $brandService->getBrandsForFiltering();
+
+        return response()->json([
+            'success' => true,
+            'brands_count' => $brands->count(),
+            'brands' => $brands->take(5), // Show first 5 brands
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+    }
+})->name('test-brands');
+
+// Test route to debug products listing page issue
+Route::get('/test-products', function () {
+    try {
+        $products = \App\Models\Product::with(['brand', 'categories', 'primaryImage', 'images'])
+            ->where('status', 'published')
+            ->paginate(12);
+
+        $brandService = app(\App\Services\BrandService::class);
+        $brands = $brandService->getBrandsForFiltering();
+
+        $categories = \App\Models\Category::where('is_active', true)
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+
+        return Inertia::render('Products', [
+            'products' => $products,
+            'filters' => [],
+            'brands' => $brands,
+            'categories' => $categories,
+            'priceRange' => ['min' => 0, 'max' => 1000],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
+    }
+})->name('test-products');
 
 // Public category browsing routes
 Route::get('/categories', [ProductController::class, 'categories'])->name('categories.index');
@@ -61,19 +157,10 @@ Route::get('/products/bestsellers', function () {
     return redirect()->route('products', ['featured' => 1]);
 })->name('products.bestsellers');
 
-Route::get('/brands', function () {
-    $brands = \App\Models\Brand::where('is_active', true)
-        ->withCount(['products' => function ($query) {
-            $query->where('status', 'published');
-        }])
-        ->orderBy('sort_order')
-        ->orderBy('name')
-        ->get();
-
-    return Inertia::render('Brands', [
-        'brands' => $brands,
-    ]);
-})->name('brands');
+// Brand routes
+Route::get('/brands', [App\Http\Controllers\BrandController::class, 'index'])->name('brands.index');
+Route::get('/brands/{slug}', [App\Http\Controllers\BrandController::class, 'show'])->name('brands.show');
+Route::get('/api/brands/search', [App\Http\Controllers\BrandController::class, 'search'])->name('brands.search');
 
 Route::get('/best-sellers', function () {
     $products = \App\Models\Product::with(['brand', 'primaryImage', 'images', 'categories'])
@@ -95,9 +182,6 @@ Route::get('/product/{slug}', function ($slug) {
 
 // Cart routes
 Route::get('/cart', [App\Http\Controllers\CartController::class, 'index'])->name('cart.index');
-Route::get('/cart/data', [App\Http\Controllers\CartController::class, 'data'])->name('cart.data');
-Route::get('/cart/summary', [App\Http\Controllers\CartController::class, 'summary'])->name('cart.summary');
-Route::get('/cart/validate', [App\Http\Controllers\CartController::class, 'validate'])->name('cart.validate');
 
 // Checkout routes
 Route::get('/checkout', [App\Http\Controllers\CheckoutController::class, 'index'])->name('checkout.index');
@@ -108,6 +192,22 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::delete('/cart', [App\Http\Controllers\CartController::class, 'clear'])->name('cart.clear');
     Route::put('/cart/{cartItem}', [App\Http\Controllers\CartController::class, 'update'])->name('cart.update');
     Route::delete('/cart/{cartItem}', [App\Http\Controllers\CartController::class, 'destroy'])->name('cart.destroy');
+});
+
+// Address API routes
+Route::prefix('api/addresses')->group(function () {
+    Route::get('/provinces', [App\Http\Controllers\AddressController::class, 'getProvinces']);
+    Route::get('/districts', [App\Http\Controllers\AddressController::class, 'getDistricts']);
+    Route::get('/communes', [App\Http\Controllers\AddressController::class, 'getCommunes']);
+    Route::get('/postal-code', [App\Http\Controllers\AddressController::class, 'getPostalCode']);
+    Route::get('/search', [App\Http\Controllers\AddressController::class, 'searchAreas']);
+});
+
+// Authenticated address management routes
+Route::middleware('auth')->prefix('api/addresses')->group(function () {
+    Route::post('/', [App\Http\Controllers\AddressController::class, 'store']);
+    Route::put('/{address}', [App\Http\Controllers\AddressController::class, 'update']);
+    Route::delete('/{address}', [App\Http\Controllers\AddressController::class, 'destroy']);
 });
 
 // Dashboard route removed - admin dashboard is now at /admin

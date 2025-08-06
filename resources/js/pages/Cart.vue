@@ -6,45 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Toaster } from '@/components/ui/sonner';
 
-import { useCartStore } from '@/stores/cart';
+import { useCartStore, type Cart, type CartValidationErrors } from '@/stores/cart';
 import { Head, Link } from '@inertiajs/vue3';
 import { Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 
-interface CartItem {
-    id: number;
-    product_id: number;
-    product_variant_id?: number;
-    quantity: number;
-    price: number;
-    total_price: number;
-    formatted_price: string;
-    formatted_total: string;
-    display_name: string;
-    product: {
-        id: number;
-        name: string;
-        slug: string;
-        sku: string;
-        primaryImage?: {
-            image_path: string;
-        };
-        brand?: {
-            name: string;
-        };
-    };
-    variant?: {
-        name: string;
-    };
+interface Props {
+    cart: Cart;
+    validation_errors?: CartValidationErrors;
+    cart_summary?: any;
 }
 
-interface Cart {
-    id: number;
-    total_quantity: number;
-    total_price: number;
-    formatted_total: string;
-    items: CartItem[];
-}
+const props = defineProps<Props>();
 
 // Store and state
 const cartStore = useCartStore();
@@ -53,18 +26,21 @@ const quantities = ref<Record<number, number>>({});
 
 // Initialize cart data on mount
 onMounted(async () => {
-    console.log('Cart page mounted, fetching cart...');
-    await cartStore.fetchCart();
-    console.log('Cart fetched:', cartStore.cart);
+    console.log('Cart page mounted, using initial data...');
+    console.log('Props received:', { cart: props.cart, cart_summary: props.cart_summary, validation_errors: props.validation_errors });
+
+    // Use initial data from Inertia props
+    const hasInitialData = cartStore.setInitialData(props.cart, props.cart_summary, props.validation_errors);
+
+    if (!hasInitialData) {
+        // Fallback: fetch if no initial data
+        await cartStore.fetchCart();
+    }
+
+    console.log('Cart initialized:', cartStore.cart);
     console.log('Has items:', cartStore.hasItems);
     console.log('Cart count:', cartStore.cartCount);
 
-    // Validate cart items (optional)
-    try {
-        await cartStore.validateCartItems();
-    } catch (error) {
-        console.warn('Cart validation failed on mount:', error);
-    }
     // Initialize quantities from cart items
     if (cartStore.cart?.items) {
         console.log('Initializing quantities for', cartStore.cart.items.length, 'items');

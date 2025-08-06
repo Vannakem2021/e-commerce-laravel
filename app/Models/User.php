@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -45,5 +46,35 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the user's addresses.
+     */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(Address::class);
+    }
+
+    /**
+     * Get the user's default shipping address.
+     */
+    public function defaultShippingAddress()
+    {
+        return $this->addresses()
+            ->where('type', 'shipping')
+            ->where('is_default', true)
+            ->first();
+    }
+
+    /**
+     * Get the user's default billing address.
+     */
+    public function defaultBillingAddress()
+    {
+        return $this->addresses()
+            ->where('type', 'billing')
+            ->where('is_default', true)
+            ->first();
     }
 }

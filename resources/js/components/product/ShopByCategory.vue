@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import Icon from '@/components/common/Icon.vue';
-import { Link } from '@inertiajs/vue3';
-import axios from 'axios';
-import { onMounted, ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 interface Category {
     id: number;
@@ -15,52 +14,72 @@ interface Category {
     color: string;
 }
 
-// Categories fetched from API
-const categories = ref<Category[]>([]);
-const loading = ref(true);
+// Get featured categories from Inertia props (shared data is in root props)
+const page = usePage();
+const featured_categories = computed(() => {
+    const cats = page.props.featured_categories || [];
+    console.log('ShopByCategory: Featured categories from props:', cats);
+    return cats;
+});
+
+// Categories state
+const loading = ref(false); // No longer loading since data comes from server
 const error = ref<string | null>(null);
 
-// Fetch featured categories from API
-const fetchCategories = async () => {
+// Initialize categories with shared data and add special categories
+const initializeCategories = () => {
+    const featuredCategories = featured_categories.value || [];
+
+    // Convert shared data to component format if needed
+    const formattedCategories = featuredCategories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        slug: category.slug,
+        description: category.description,
+        product_count: category.product_count,
+        href: category.href,
+        icon: category.icon,
+        color: category.color,
+    }));
+
+    // Add special categories (New Arrivals, Best Sellers) to the mix
+    const specialCategories: Category[] = [
+        {
+            id: 999,
+            name: 'New Arrivals',
+            slug: 'new-arrivals',
+            description: 'Latest products just added',
+            product_count: 0, // Will be updated dynamically
+            href: '/products?sort=newest',
+            icon: 'clock',
+            color: 'from-green-500 to-green-600',
+        },
+        {
+            id: 998,
+            name: 'Best Sellers',
+            slug: 'best-sellers',
+            description: 'Most popular products',
+            product_count: 0, // Will be updated dynamically
+            href: '/products?sort=popular',
+            icon: 'trending-up',
+            color: 'from-orange-500 to-orange-600',
+        },
+    ];
+
+    // Combine database categories with special categories
+    return [...formattedCategories, ...specialCategories];
+};
+
+// Initialize categories with fallback
+const categories = computed(() => {
     try {
-        loading.value = true;
-        error.value = null;
-
-        const response = await axios.get('/api/categories/featured');
-        categories.value = response.data.categories;
-
-        // Add special categories (New Arrivals, Best Sellers) to the mix
-        const specialCategories: Category[] = [
-            {
-                id: 999,
-                name: 'New Arrivals',
-                slug: 'new-arrivals',
-                description: 'Latest products just added',
-                product_count: 0, // Will be updated dynamically
-                href: '/products?sort=newest',
-                icon: 'clock',
-                color: 'from-green-500 to-green-600',
-            },
-            {
-                id: 998,
-                name: 'Best Sellers',
-                slug: 'best-sellers',
-                description: 'Most popular products',
-                product_count: 0, // Will be updated dynamically
-                href: '/products?sort=popular',
-                icon: 'trending-up',
-                color: 'from-orange-500 to-orange-600',
-            },
-        ];
-
-        // Combine database categories with special categories
-        categories.value = [...categories.value, ...specialCategories];
+        return initializeCategories();
     } catch (err) {
-        console.error('Error fetching categories:', err);
+        console.error('Error initializing categories:', err);
         error.value = 'Failed to load categories';
 
-        // Fallback to hardcoded categories if API fails
-        categories.value = [
+        // Fallback to hardcoded categories if shared data fails
+        return [
             {
                 id: 1,
                 name: 'Smartphones',
@@ -82,14 +101,7 @@ const fetchCategories = async () => {
                 color: 'from-purple-500 to-purple-600',
             },
         ];
-    } finally {
-        loading.value = false;
     }
-};
-
-// Fetch categories on component mount
-onMounted(() => {
-    fetchCategories();
 });
 </script>
 

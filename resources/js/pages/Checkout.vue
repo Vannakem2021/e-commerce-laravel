@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import Footer from '@/components/layout/Footer.vue';
 import Navbar from '@/components/navigation/Navbar.vue';
+import ShippingForm from '@/components/checkout/ShippingForm.vue';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, CreditCard, MapPin, ShoppingBag, Truck } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 interface CartItem {
     id: number;
@@ -61,10 +62,20 @@ const getImageUrl = (item: CartItem): string => {
     }
     return '/images/placeholder-product.jpg';
 };
+
+// State for shipping address
+const shippingAddress = ref(null);
+
+// Handle address saved
+const onAddressSaved = (address: any) => {
+    shippingAddress.value = address;
+    console.log('Address saved:', address);
+    // Here you can proceed to next step or update UI
+};
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-50">
+    <div class="min-h-screen bg-background">
         <Head title="Checkout - Electronics Store">
             <meta name="description" content="Complete your purchase securely" />
         </Head>
@@ -72,72 +83,88 @@ const getImageUrl = (item: CartItem): string => {
         <!-- Navbar -->
         <Navbar />
 
-        <div class="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class="checkout-container">
             <!-- Page Header -->
-            <div class="mb-8">
-                <div class="flex items-center gap-4 mb-4">
-                    <Link href="/cart" class="flex items-center text-gray-600 hover:text-teal-600 transition-colors">
+            <div class="checkout-header">
+                <div class="flex items-center gap-4 mb-6">
+                    <Link href="/cart" class="checkout-back-link">
                         <ArrowLeft class="h-5 w-5 mr-2" />
                         Back to Cart
                     </Link>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900">Checkout</h1>
-                <p class="mt-2 text-gray-600">Complete your purchase securely</p>
+                <div class="space-y-2">
+                    <h1 class="text-3xl font-bold tracking-tight">Checkout</h1>
+                    <p class="text-muted-foreground">Complete your purchase securely</p>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
                 <!-- Checkout Process -->
-                <div class="lg:col-span-2 space-y-6">
+                <div class="lg:col-span-2 space-y-8">
                     <!-- Step 1: Shipping Information -->
-                    <div class="rounded-lg border bg-white shadow-sm">
-                        <div class="border-b px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-100">
-                                    <MapPin class="h-4 w-4 text-teal-600" />
+                    <div class="checkout-section">
+                        <div class="checkout-section-header">
+                            <div class="checkout-progress">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full checkout-step-active">
+                                    <MapPin class="h-5 w-5" />
                                 </div>
-                                <h2 class="text-lg font-semibold">Shipping Information</h2>
+                                <div class="space-y-1">
+                                    <h2 class="text-lg font-semibold">Shipping Information</h2>
+                                    <p class="text-sm text-muted-foreground">Enter your delivery address</p>
+                                </div>
                             </div>
                         </div>
-                        <div class="p-6">
-                            <p class="text-gray-600">Shipping address form will be implemented here</p>
-                            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <p class="text-sm text-gray-500">Coming soon: Address collection form</p>
-                            </div>
+                        <div class="checkout-section-content">
+                            <ShippingForm
+                                @saved="onAddressSaved"
+                                @cancel="() => {}"
+                                :type="'shipping'"
+                            />
                         </div>
                     </div>
 
                     <!-- Step 2: Payment Method -->
-                    <div class="rounded-lg border bg-white shadow-sm">
-                        <div class="border-b px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                                    <CreditCard class="h-4 w-4 text-gray-400" />
+                    <div class="checkout-section">
+                        <div class="checkout-section-header">
+                            <div class="checkout-progress">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full checkout-step-inactive">
+                                    <CreditCard class="h-5 w-5" />
                                 </div>
-                                <h2 class="text-lg font-semibold text-gray-400">Payment Method</h2>
+                                <div class="space-y-1">
+                                    <h2 class="text-lg font-semibold text-muted-foreground">Payment Method</h2>
+                                    <p class="text-sm text-muted-foreground">Choose your payment option</p>
+                                </div>
                             </div>
                         </div>
-                        <div class="p-6">
-                            <p class="text-gray-600">Payment options will be implemented here</p>
-                            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <p class="text-sm text-gray-500">Coming soon: Stripe payment integration</p>
+                        <div class="checkout-section-content">
+                            <div class="space-y-4">
+                                <p class="text-muted-foreground">Payment options will be implemented here</p>
+                                <div class="p-4 bg-muted rounded-lg">
+                                    <p class="text-sm text-muted-foreground">Coming soon: Stripe payment integration</p>
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Step 3: Order Review -->
-                    <div class="rounded-lg border bg-white shadow-sm">
-                        <div class="border-b px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                                    <ShoppingBag class="h-4 w-4 text-gray-400" />
+                    <div class="checkout-section">
+                        <div class="checkout-section-header">
+                            <div class="checkout-progress">
+                                <div class="flex h-10 w-10 items-center justify-center rounded-full checkout-step-inactive">
+                                    <ShoppingBag class="h-5 w-5" />
                                 </div>
-                                <h2 class="text-lg font-semibold text-gray-400">Order Review</h2>
+                                <div class="space-y-1">
+                                    <h2 class="text-lg font-semibold text-muted-foreground">Order Review</h2>
+                                    <p class="text-sm text-muted-foreground">Review your order details</p>
+                                </div>
                             </div>
                         </div>
-                        <div class="p-6">
-                            <p class="text-gray-600">Final order review will be implemented here</p>
-                            <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                                <p class="text-sm text-gray-500">Coming soon: Final order confirmation</p>
+                        <div class="checkout-section-content">
+                            <div class="space-y-4">
+                                <p class="text-muted-foreground">Final order review will be implemented here</p>
+                                <div class="p-4 bg-muted rounded-lg">
+                                    <p class="text-sm text-muted-foreground">Coming soon: Final order confirmation</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -145,63 +172,65 @@ const getImageUrl = (item: CartItem): string => {
 
                 <!-- Order Summary -->
                 <div class="lg:col-span-1">
-                    <div class="rounded-lg border bg-white p-6 shadow-sm sticky top-8">
-                        <h2 class="mb-4 text-lg font-semibold">Order Summary</h2>
+                    <div class="checkout-summary">
+                        <h2 class="mb-6 text-lg font-semibold">Order Summary</h2>
 
                         <!-- Cart Items -->
                         <div class="space-y-4 mb-6">
-                            <div v-for="item in cart.items" :key="item.id" class="flex items-center gap-3">
+                            <div v-for="item in cart.items" :key="item.id" class="flex items-center gap-4">
                                 <!-- Product Image -->
-                                <div class="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border">
+                                <div class="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border">
                                     <img :src="getImageUrl(item)" :alt="item.product.name" class="h-full w-full object-cover" />
                                 </div>
 
                                 <!-- Product Details -->
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium text-gray-900 truncate">{{ item.display_name }}</p>
-                                    <p class="text-sm text-gray-500">Qty: {{ item.quantity }}</p>
+                                    <p class="text-sm font-medium truncate">{{ item.display_name }}</p>
+                                    <p class="text-sm text-muted-foreground">Qty: {{ item.quantity }}</p>
                                 </div>
 
                                 <!-- Price -->
-                                <div class="text-sm font-medium text-gray-900">
+                                <div class="text-sm font-medium">
                                     {{ item.formatted_total }}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Order Totals -->
-                        <div class="space-y-3 border-t pt-4">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Subtotal ({{ itemCount }} items)</span>
+                        <div class="space-y-4 border-t pt-6">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground">Subtotal ({{ itemCount }} items)</span>
                                 <span class="font-medium">{{ subtotal }}</span>
                             </div>
 
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Shipping</span>
-                                <span class="font-medium">Calculated at checkout</span>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground">Shipping</span>
+                                <span class="font-medium text-muted-foreground">Calculated at checkout</span>
                             </div>
 
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Tax</span>
-                                <span class="font-medium">Calculated at checkout</span>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-muted-foreground">Tax</span>
+                                <span class="font-medium text-muted-foreground">Calculated at checkout</span>
                             </div>
 
-                            <hr class="my-4" />
-
-                            <div class="flex justify-between text-lg font-semibold">
-                                <span>Total</span>
-                                <span>{{ subtotal }}</span>
+                            <div class="border-t pt-4">
+                                <div class="flex justify-between text-lg font-semibold">
+                                    <span>Total</span>
+                                    <span>{{ subtotal }}</span>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Place Order Button (Disabled for now) -->
-                        <Button class="mt-6 w-full" size="lg" disabled>
-                            <Truck class="mr-2 h-4 w-4" />
-                            Place Order
-                        </Button>
-                        <p class="mt-2 text-xs text-gray-500 text-center">
-                            Order placement will be enabled once checkout steps are implemented
-                        </p>
+                        <div class="mt-8 space-y-3">
+                            <Button class="w-full" size="lg" disabled>
+                                <Truck class="mr-2 h-4 w-4" />
+                                Place Order
+                            </Button>
+                            <p class="text-xs text-muted-foreground text-center">
+                                Order placement will be enabled once checkout steps are implemented
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>

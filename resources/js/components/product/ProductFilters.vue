@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Input } from '@/components/ui/input';
 import { ChevronDown } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 interface Category {
     id: number;
@@ -46,55 +47,59 @@ const priceRange = ref({
     max: props.currentMaxPrice,
 });
 
-// Categories fetched from API
-const categories = ref<Category[]>([]);
-const categoriesLoading = ref(true);
+// Get categories from Inertia props (shared data is in root props)
+const page = usePage();
+const sharedCategories = computed(() => {
+    const cats = page.props.categories || [];
+    console.log('ProductFilters: Raw categories from props:', cats);
+    return cats;
+});
 
-// Fetch categories from API
-const fetchCategories = async () => {
+// Flatten the hierarchical structure for filter display
+const categories = computed(() => {
     try {
-        categoriesLoading.value = true;
-        const response = await fetch('/api/categories');
-        const data = await response.json();
+        console.log('ProductFilters: Processing categories for filters:', sharedCategories.value);
 
-        // Flatten the hierarchical structure for filter display
+        if (!sharedCategories.value || !Array.isArray(sharedCategories.value)) {
+            console.warn('ProductFilters: Categories not available in shared data for filters');
+            console.log('ProductFilters: Shared data keys:', Object.keys(sharedData.value));
+            return [];
+        }
+
         const flatCategories: Category[] = [];
 
-        data.categories.forEach((rootCategory: Category) => {
-            // Add root category
-            flatCategories.push({
-                id: rootCategory.id,
-                name: rootCategory.name,
-                slug: rootCategory.slug,
-                product_count: rootCategory.product_count,
-            });
-
-            // Add children categories
-            if (rootCategory.children && rootCategory.children.length > 0) {
-                rootCategory.children.forEach((child: Category) => {
-                    flatCategories.push({
-                        id: child.id,
-                        name: child.name,
-                        slug: child.slug,
-                        product_count: child.product_count,
-                    });
-                });
-            }
+        sharedCategories.value.forEach((rootCategory: Category) => {
+        // Add root category
+        flatCategories.push({
+            id: rootCategory.id,
+            name: rootCategory.name,
+            slug: rootCategory.slug,
+            product_count: rootCategory.product_count,
         });
 
-        categories.value = flatCategories;
+        // Add children categories
+        if (rootCategory.children && rootCategory.children.length > 0) {
+            rootCategory.children.forEach((child: Category) => {
+                flatCategories.push({
+                    id: child.id,
+                    name: child.name,
+                    slug: child.slug,
+                    product_count: child.product_count,
+                });
+            });
+        }
+        });
+
+        console.log('ProductFilters: Generated flat categories:', flatCategories);
+        return flatCategories;
     } catch (error) {
-        console.error('Error fetching categories:', error);
-        // Fallback to basic categories
-        categories.value = [
-            { id: 1, name: 'Smartphones', slug: 'smartphones', product_count: 0 },
-            { id: 2, name: 'Laptops', slug: 'laptops', product_count: 0 },
-            { id: 3, name: 'Tablets', slug: 'tablets', product_count: 0 },
-        ];
-    } finally {
-        categoriesLoading.value = false;
+        console.error('ProductFilters: Error processing categories:', error);
+        return [];
     }
-};
+});
+
+// Categories are no longer loading since they come from server
+const categoriesLoading = ref(false);
 
 // Brands data (now comes from props)
 const brandsLoading = ref(false);
@@ -194,10 +199,7 @@ const toggleBrandFilter = (slug: string) => {
     }
 };
 
-// Fetch categories on component mount
-onMounted(() => {
-    fetchCategories();
-});
+
 </script>
 
 <template>

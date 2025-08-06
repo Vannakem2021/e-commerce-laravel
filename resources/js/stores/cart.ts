@@ -55,7 +55,11 @@ export const useCartStore = defineStore('cart', () => {
     const validationErrors = ref<CartValidationErrors>({});
 
     // Getters
-    const cartCount = computed(() => cart.value?.total_quantity || 0);
+    const cartCount = computed(() => {
+        const count = cart.value?.total_quantity || 0;
+        console.log('Cart count computed:', count, 'from cart:', cart.value);
+        return count;
+    });
     const cartTotal = computed(() => cart.value?.formatted_total || '$0.00');
     const hasItems = computed(() => (cart.value?.items.length || 0) > 0);
     const isEmpty = computed(() => !hasItems.value);
@@ -63,49 +67,28 @@ export const useCartStore = defineStore('cart', () => {
     const validationErrorCount = computed(() => Object.keys(validationErrors.value).length);
 
     // Actions
-    const fetchCart = async () => {
-        isLoading.value = true;
-        error.value = null;
-
-        try {
-            // Fetch full cart data directly instead of summary first
-            const response = await fetch('/cart/data', {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch cart');
-            }
-
-            const data = await response.json();
-            console.log('Cart data response:', data);
-
-            if (data.success && data.cart) {
-                cart.value = {
-                    id: data.cart.id || 0,
-                    total_quantity: data.cart.total_quantity || 0,
-                    total_price: data.cart.total_price || 0,
-                    formatted_total: data.cart.formatted_total || '$0.00',
-                    items: data.cart.items || [],
-                };
-                console.log('Updated cart state:', cart.value);
-
-                // Validate cart items after fetching (optional, don't fail if validation fails)
-                try {
-                    await validateCartItems();
-                } catch (error) {
-                    console.warn('Cart validation failed, but continuing:', error);
-                }
-            }
-        } catch (err) {
-            error.value = err instanceof Error ? err.message : 'Failed to fetch cart';
-            console.error('Error fetching cart:', err);
-        } finally {
-            isLoading.value = false;
+    const setInitialData = (initialCart: Cart, initialSummary?: any, initialValidationErrors?: CartValidationErrors) => {
+        if (initialCart) {
+            cart.value = initialCart;
+            console.log('Cart store initialized with data:', cart.value);
         }
+        if (initialValidationErrors) {
+            validationErrors.value = initialValidationErrors;
+            console.log('Validation errors set:', validationErrors.value);
+        }
+        return !!initialCart;
+    };
+
+    const fetchCart = async (force = false) => {
+        // Skip if we already have data and not forcing
+        if (!force && cart.value && cart.value.items.length >= 0) {
+            return;
+        }
+
+        // Since we removed the API endpoint, we can't fetch cart data anymore
+        // This method is kept for compatibility but doesn't do anything
+        console.warn('fetchCart called but API endpoint removed. Cart data should be provided via Inertia props.');
+        return;
     };
 
 
@@ -155,8 +138,16 @@ export const useCartStore = defineStore('cart', () => {
             const data = await errorHandler.retry(operation, 2);
 
             if (data.success) {
-                // Update cart state (validation is included in fetchCart)
-                await fetchCart();
+                // Update cart count from cart_summary if available
+                if (data.cart_summary) {
+                    // Update cart state with summary data
+                    if (cart.value) {
+                        cart.value.total_quantity = data.cart_summary.total_quantity;
+                        cart.value.total_price = data.cart_summary.total_price;
+                        cart.value.formatted_total = data.cart_summary.formatted_total;
+                    }
+                }
+
                 toast.success('Added to cart!', {
                     description: `Item has been added to your cart successfully. You now have ${cartCount.value} item${cartCount.value !== 1 ? 's' : ''} in your cart.`
                 });
@@ -201,8 +192,34 @@ export const useCartStore = defineStore('cart', () => {
             const data = await operation();
 
             if (data.success) {
-                // Update cart state (validation is included in fetchCart)
-                await fetchCart();
+                // Update cart state locally for immediate feedback
+                if (cart.value) {
+                    if (quantity === 0) {
+                        // Remove item from cart
+                        cart.value.items = cart.value.items.filter(item => item.id !== itemId);
+                    } else {
+                        // Update item quantity
+                        const item = cart.value.items.find(item => item.id === itemId);
+                        if (item) {
+                            item.quantity = quantity;
+                            item.total_price = item.price * quantity;
+                            item.formatted_total = '$' + (item.total_price / 100).toFixed(2);
+                        }
+                    }
+
+                    // Use server-returned cart summary for accurate totals
+                    if (data.cart_summary) {
+                        cart.value.total_quantity = data.cart_summary.total_quantity;
+                        cart.value.total_price = data.cart_summary.total_price;
+                        cart.value.formatted_total = data.cart_summary.formatted_total;
+                    } else {
+                        // Fallback: recalculate cart totals
+                        cart.value.total_quantity = cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+                        cart.value.total_price = cart.value.items.reduce((sum, item) => sum + item.total_price, 0);
+                        cart.value.formatted_total = '$' + (cart.value.total_price / 100).toFixed(2);
+                    }
+                }
+
                 return { success: true, message: data.message };
             } else {
                 errorHandler.handleCartError(new Error(data.message), 'update quantity');
@@ -233,8 +250,23 @@ export const useCartStore = defineStore('cart', () => {
             const data = await response.json();
 
             if (data.success) {
-                // Update cart state (validation is included in fetchCart)
-                await fetchCart();
+                // Update cart state locally for immediate feedback
+                if (cart.value) {
+                    cart.value.items = cart.value.items.filter(item => item.id !== itemId);
+
+                    // Use server-returned cart summary for accurate totals
+                    if (data.cart_summary) {
+                        cart.value.total_quantity = data.cart_summary.total_quantity;
+                        cart.value.total_price = data.cart_summary.total_price;
+                        cart.value.formatted_total = data.cart_summary.formatted_total;
+                    } else {
+                        // Fallback: recalculate cart totals
+                        cart.value.total_quantity = cart.value.items.reduce((sum, item) => sum + item.quantity, 0);
+                        cart.value.total_price = cart.value.items.reduce((sum, item) => sum + item.total_price, 0);
+                        cart.value.formatted_total = '$' + (cart.value.total_price / 100).toFixed(2);
+                    }
+                }
+
                 return { success: true, message: data.message };
             } else {
                 error.value = data.message;
@@ -283,31 +315,9 @@ export const useCartStore = defineStore('cart', () => {
     };
 
     const validateCartItems = async () => {
-        try {
-            const response = await fetch('/cart/validate', {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to validate cart');
-            }
-
-            const data = await response.json();
-
-            if (data.success) {
-                validationErrors.value = data.validation_errors || {};
-                return data.validation_errors || {};
-            } else {
-                console.error('Cart validation failed:', data.message);
-                return {};
-            }
-        } catch (err) {
-            console.error('Error validating cart:', err);
-            return {};
-        }
+        // Validation is now handled server-side and passed via Inertia props
+        // This method is kept for compatibility but doesn't make API calls
+        return validationErrors.value;
     };
 
     const clearError = () => {
@@ -318,8 +328,8 @@ export const useCartStore = defineStore('cart', () => {
         validationErrors.value = {};
     };
 
-    // Initialize cart on store creation
-    fetchCart();
+    // Don't initialize cart on store creation - let components decide when to fetch
+    // fetchCart();
 
     return {
         // State
@@ -337,6 +347,7 @@ export const useCartStore = defineStore('cart', () => {
         validationErrorCount,
 
         // Actions
+        setInitialData,
         fetchCart,
         addToCart,
         updateQuantity,

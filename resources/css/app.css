@@ -153,3 +153,127 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* Checkout Page Custom Styles */
+@layer components {
+    /* Checkout Step Indicators */
+    .checkout-step-active {
+        @apply bg-primary text-primary-foreground;
+    }
+
+    .checkout-step-inactive {
+        @apply bg-muted text-muted-foreground;
+    }
+
+    .checkout-step-completed {
+        @apply bg-primary text-primary-foreground;
+    }
+
+    /* Form Input Styles */
+    .checkout-input {
+        @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .checkout-input-error {
+        @apply border-destructive focus-visible:ring-destructive;
+    }
+
+    /* Select Styles */
+    .checkout-select {
+        @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    /* Textarea Styles */
+    .checkout-textarea {
+        @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    /* Checkbox Styles */
+    .checkout-checkbox {
+        @apply h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    }
+
+    /* Label Styles */
+    .checkout-label {
+        @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    }
+
+    /* Required Field Indicator */
+    .checkout-required {
+        @apply text-destructive;
+    }
+
+    /* Error Message */
+    .checkout-error {
+        @apply text-sm text-destructive;
+    }
+
+    /* Section Card */
+    .checkout-section {
+        @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+    }
+
+    /* Section Header */
+    .checkout-section-header {
+        @apply border-b px-6 py-4;
+    }
+
+    /* Section Content */
+    .checkout-section-content {
+        @apply p-6;
+    }
+
+    /* Order Summary Card */
+    .checkout-summary {
+        @apply rounded-lg border bg-card p-6 shadow-sm sticky top-8;
+    }
+
+    /* Form Section Spacing */
+    .checkout-form-section {
+        @apply space-y-6;
+    }
+
+    /* Form Group Spacing */
+    .checkout-form-group {
+        @apply space-y-2;
+    }
+
+    /* Grid Layouts */
+    .checkout-grid-2 {
+        @apply grid grid-cols-1 gap-6 sm:grid-cols-2;
+    }
+
+    .checkout-grid-3 {
+        @apply grid grid-cols-1 gap-6 sm:grid-cols-3;
+    }
+
+    /* Button Spacing */
+    .checkout-actions {
+        @apply flex justify-end space-x-3 pt-6;
+    }
+
+    /* Loading State */
+    .checkout-loading {
+        @apply opacity-50 pointer-events-none;
+    }
+
+    /* Step Progress */
+    .checkout-progress {
+        @apply flex items-center gap-3;
+    }
+
+    /* Responsive Spacing */
+    .checkout-container {
+        @apply container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8;
+    }
+
+    /* Page Header */
+    .checkout-header {
+        @apply mb-8;
+    }
+
+    /* Back Link */
+    .checkout-back-link {
+        @apply flex items-center text-muted-foreground hover:text-foreground transition-colors;
+    }
+}

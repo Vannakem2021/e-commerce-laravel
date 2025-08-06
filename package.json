@@ -28,6 +28,7 @@
         "@tanstack/vue-table": "^8.21.3",
         "@vitejs/plugin-vue": "^5.2.1",
         "@vueuse/core": "^12.8.2",
+        "cambodia-postal-codes": "^1.0.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "concurrently": "^9.0.1",

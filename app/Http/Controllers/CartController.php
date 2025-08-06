@@ -33,9 +33,48 @@ class CartController extends Controller
         $cart = $this->cartService->getCartWithItems();
         $errors = $this->cartService->validateCart($cart);
 
+        // Transform cart data to ensure all accessors are included
+        $cartData = [
+            'id' => $cart->id,
+            'total_quantity' => $cart->total_quantity,
+            'total_price' => $cart->total_price,
+            'formatted_total' => $cart->formatted_total,
+            'items' => $cart->items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'product_variant_id' => $item->product_variant_id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'total_price' => $item->total_price,
+                    'formatted_price' => $item->formatted_price,
+                    'formatted_total' => $item->formatted_total,
+                    'display_name' => $item->display_name,
+                    'product' => [
+                        'id' => $item->product->id,
+                        'name' => $item->product->name,
+                        'slug' => $item->product->slug,
+                        'sku' => $item->product->sku,
+                        'primaryImage' => $item->product->primaryImage ? [
+                            'image_path' => $item->product->primaryImage->image_path,
+                        ] : null,
+                        'brand' => $item->product->brand ? [
+                            'id' => $item->product->brand->id,
+                            'name' => $item->product->brand->name,
+                        ] : null,
+                    ],
+                    'variant' => $item->variant ? [
+                        'id' => $item->variant->id,
+                        'name' => $item->variant->name,
+                    ] : null,
+                ];
+            }),
+        ];
+
         return Inertia::render('Cart', [
-            'cart' => $cart,
+            'cart' => $cartData,
             'validation_errors' => $errors,
+            'cart_summary' => $this->cartService->getCartSummary(),
         ]);
     }
 
@@ -204,95 +243,5 @@ class CartController extends Controller
         }
     }
 
-    /**
-     * Get cart summary for AJAX requests.
-     */
-    public function summary(): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'cart_summary' => $this->cartService->getCartSummary(),
-        ]);
-    }
 
-    /**
-     * Get full cart data for AJAX requests.
-     */
-    public function data(): JsonResponse
-    {
-        try {
-            $cart = $this->cartService->getCartWithItems();
-
-            return response()->json([
-                'success' => true,
-                'cart' => [
-                    'id' => $cart->id,
-                    'total_quantity' => $cart->total_quantity,
-                    'total_price' => $cart->total_price,
-                    'formatted_total' => $cart->formatted_total,
-                    'items' => $cart->items->map(function ($item) {
-                        return [
-                            'id' => $item->id,
-                            'product_id' => $item->product_id,
-                            'product_variant_id' => $item->product_variant_id,
-                            'quantity' => $item->quantity,
-                            'price' => $item->price,
-                            'total_price' => $item->price * $item->quantity,
-                            'formatted_price' => '$' . number_format($item->price / 100, 2),
-                            'formatted_total' => '$' . number_format(($item->price * $item->quantity) / 100, 2),
-                            'display_name' => $item->product->name . ($item->variant ? ' - ' . $item->variant->name : ''),
-                            'product' => [
-                                'id' => $item->product->id,
-                                'name' => $item->product->name,
-                                'slug' => $item->product->slug,
-                                'sku' => $item->product->sku,
-                                'formatted_price' => $item->product->formatted_price,
-                                'primaryImage' => $item->product->primaryImage ? [
-                                    'image_path' => $item->product->primaryImage->image_path,
-                                ] : null,
-                                'brand' => $item->product->brand ? [
-                                    'id' => $item->product->brand->id,
-                                    'name' => $item->product->brand->name,
-                                ] : null,
-                            ],
-                            'variant' => $item->variant ? [
-                                'id' => $item->variant->id,
-                                'name' => $item->variant->name,
-                                'sku' => $item->variant->sku,
-                                'formatted_price' => $item->variant->formatted_price,
-                            ] : null,
-                        ];
-                    }),
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch cart data'
-            ], 500);
-        }
-    }
-
-    /**
-     * Validate cart items for availability and stock.
-     */
-    public function validate(): JsonResponse
-    {
-        try {
-            $validationErrors = $this->cartService->validateCart();
-
-            return response()->json([
-                'success' => true,
-                'validation_errors' => $validationErrors,
-                'has_errors' => !empty($validationErrors),
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to validate cart'
-            ], 500);
-        }
-    }
 }

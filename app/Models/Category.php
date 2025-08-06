@@ -64,11 +64,49 @@ class Category extends Model
     }
 
     /**
-     * Get all descendants (children, grandchildren, etc.).
+     * Get all descendants (children, grandchildren, etc.) with depth limit.
      */
-    public function descendants()
+    public function descendants(int $maxDepth = 3)
     {
-        return $this->children()->with('descendants');
+        if ($maxDepth <= 0) {
+            return $this->children();
+        }
+
+        return $this->children()->with(['descendants' => function ($query) use ($maxDepth) {
+            // Recursively load descendants with decreasing depth
+            if ($maxDepth > 1) {
+                $query->with(['descendants' => function ($q) use ($maxDepth) {
+                    // Continue recursion with reduced depth
+                    return $q->descendants($maxDepth - 1);
+                }]);
+            }
+        }]);
+    }
+
+    /**
+     * Get all descendants as a flat collection with depth limit.
+     */
+    public function getAllDescendants(int $maxDepth = 3): \Illuminate\Support\Collection
+    {
+        $descendants = collect();
+        $this->collectDescendants($descendants, $maxDepth, 0);
+        return $descendants;
+    }
+
+    /**
+     * Recursively collect descendants into a flat collection.
+     */
+    private function collectDescendants(\Illuminate\Support\Collection $collection, int $maxDepth, int $currentDepth): void
+    {
+        if ($currentDepth >= $maxDepth) {
+            return;
+        }
+
+        $children = $this->children()->get();
+        foreach ($children as $child) {
+            $collection->push($child);
+            $child->collectDescendants($collection, $maxDepth, $currentDepth + 1);
+        }
     }
 
     /**
@@ -154,4 +192,6 @@ class Category extends Model
 
         return $path->implode(' > ');
     }
+
+
 }

@@ -35,7 +35,7 @@ const getBrandLogo = (brand: Brand) => {
 // Sample fallback brands data for development
 // Helper function to get brand URL
 const getBrandUrl = (brand: Brand) => {
-    return `/products?brand=${brand.slug}`;
+    return `/brands/${brand.slug}`;
 };
 </script>
 

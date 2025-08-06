@@ -70,22 +70,9 @@ class ProductController extends Controller
 
         $products = $query->paginate(12)->withQueryString();
 
-        // Get filter options with product counts
-        $brands = Brand::where('is_active', true)
-            ->withCount(['products' => function ($query) {
-                $query->where('status', 'published');
-            }])
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get(['id', 'name', 'slug'])
-            ->map(function ($brand) {
-                return [
-                    'id' => $brand->id,
-                    'name' => $brand->name,
-                    'slug' => $brand->slug,
-                    'product_count' => $brand->products_count,
-                ];
-            });
+        // Get filter options with product counts (cached)
+        $brandService = app(\App\Services\BrandService::class);
+        $brands = $brandService->getBrandsForFiltering();
 
         $categories = Category::where('is_active', true)
             ->whereNull('parent_id') // Only root categories for main filter
@@ -156,7 +143,7 @@ class ProductController extends Controller
     public function search(Request $request)
     {
         $query = $request->get('q', '');
-        
+
         if (strlen($query) < 2) {
             return response()->json([]);
         }

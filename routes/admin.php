@@ -47,14 +47,14 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
         Route::post('categories/sort-order', [CategoryController::class, 'updateSortOrder'])->name('categories.sort-order');
 
         // Brand Management - use ID binding for admin routes
-        Route::resource('brands', BrandController::class)->parameters([
+        Route::resource('brands', \App\Http\Controllers\Admin\BrandController::class)->parameters([
             'brands' => 'brand:id'
         ]);
 
         // Brand bulk operations
-        Route::post('brands/bulk-status', [BrandController::class, 'bulkUpdateStatus'])->name('brands.bulk-status');
-        Route::delete('brands/bulk-delete', [BrandController::class, 'bulkDelete'])->name('brands.bulk-delete');
-        Route::post('brands/sort-order', [BrandController::class, 'updateSortOrder'])->name('brands.sort-order');
+        Route::post('brands/bulk-status', [\App\Http\Controllers\Admin\BrandController::class, 'bulkUpdateStatus'])->name('brands.bulk-status');
+        Route::delete('brands/bulk-delete', [\App\Http\Controllers\Admin\BrandController::class, 'bulkDelete'])->name('brands.bulk-delete');
+        Route::post('brands/sort-order', [\App\Http\Controllers\Admin\BrandController::class, 'updateSortOrder'])->name('brands.sort-order');
 
         // Removed Attribute Management routes
 

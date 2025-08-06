@@ -9,7 +9,6 @@ use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Throwable;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -41,9 +40,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Global exception handler for consistent error responses
-        $exceptions->render(function (Throwable $e, Request $request) {
-            // Only handle JSON and Inertia requests
-            if (!$request->expectsJson() && !$request->header('X-Inertia')) {
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            // Only handle explicit API requests (routes starting with /api/ or explicit JSON requests)
+            $isApiRequest = str_starts_with($request->path(), 'api/') ||
+                           ($request->expectsJson() && !$request->header('X-Inertia'));
+
+            if (!$isApiRequest) {
                 return null; // Let Laravel handle normally
             }
 

@@ -2,6 +2,7 @@
 import AppLogo from '@/components/common/AppLogo.vue';
 import Icon from '@/components/common/Icon.vue';
 import { usePermissions } from '@/composables/usePermissions';
+import { useCategories } from '@/composables/useCategories';
 import { useCartStore } from '@/stores/cart';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -9,7 +10,19 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const { isAdmin } = usePermissions();
+const { categoryDropdowns, hasCategories, categoryError } = useCategories();
 const cartStore = useCartStore();
+
+// Get cart count - prioritize store data over shared data
+const cartCount = computed(() => {
+    // If cart store has data, use it (it's more up-to-date)
+    if (cartStore.cart) {
+        return cartStore.cartCount;
+    }
+    // Fallback to shared data from initial page load
+    const sharedCartSummary = page.props.cart_summary as any;
+    return sharedCartSummary?.total_quantity || 0;
+});
 const isMobileMenuOpen = ref(false);
 
 // Close mobile menu when clicking outside or pressing escape
@@ -25,7 +38,22 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeydown);
-    fetchCategories();
+
+    // Initialize cart store with shared data if not already initialized
+    if (!cartStore.cart) {
+        const sharedCartSummary = page.props.cart_summary as any;
+        if (sharedCartSummary) {
+            // Create a minimal cart object from shared summary data
+            const cartData = {
+                id: sharedCartSummary.id || 0,
+                total_quantity: sharedCartSummary.total_quantity || 0,
+                total_price: sharedCartSummary.total_price || 0,
+                formatted_total: sharedCartSummary.formatted_total || '$0.00',
+                items: [], // We don't have items in summary, but that's ok for navbar
+            };
+            cartStore.setInitialData(cartData);
+        }
+    }
 });
 
 onUnmounted(() => {
@@ -39,34 +67,21 @@ const primaryNavItems = [
     { name: 'Best Sellers', href: '/products/bestsellers' },
 ];
 
-// Dynamic category dropdowns
-const categoryDropdowns = ref([]);
-const categoriesLoading = ref(true);
+// Error handling for categories
+const showCategoryError = computed(() => {
+    return categoryError.value && !hasCategories.value;
+});
 
-// Fetch categories from API
-const fetchCategories = async () => {
-    try {
-        categoriesLoading.value = true;
-        const response = await fetch('/api/categories');
-        const data = await response.json();
+// Fallback navigation when categories fail to load
+const fallbackNavigation = computed(() => {
+    if (hasCategories.value) return [];
 
-        // Transform API data to dropdown format
-        categoryDropdowns.value = data.categories.map((category) => ({
-            name: category.name,
-            href: `/products?category=${category.slug}`,
-            subcategories: category.children
-                ? category.children.map((child) => ({
-                      name: child.name,
-                      href: `/products?category=${child.slug}`,
-                  }))
-                : [],
-        }));
-    } catch (error) {
-        console.error('Error fetching categories:', error);
-    } finally {
-        categoriesLoading.value = false;
-    }
-};
+    return [
+        { name: 'All Products', href: '/products' },
+        { name: 'New Arrivals', href: '/products/new' },
+        { name: 'Best Sellers', href: '/products/bestsellers' },
+    ];
+});
 
 // Brands dropdown
 const brandsDropdown = {
@@ -198,10 +213,10 @@ const brandsDropdown = {
                     >
                         <Icon name="shopping-cart" class="h-5 w-5 text-gray-900" />
                         <span
-                            v-if="cartStore.cartCount > 0"
+                            v-if="cartCount > 0"
                             class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#00c9a7] text-xs font-semibold text-white shadow-sm"
                         >
-                            {{ cartStore.cartCount }}
+                            {{ cartCount }}
                         </span>
                     </Link>
 
